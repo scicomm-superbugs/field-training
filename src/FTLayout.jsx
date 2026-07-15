@@ -326,7 +326,8 @@ export default function FTLayout() {
   }, [userRole]);
 
   const isStaff = userRole === 'master' || userRole === 'admin' || userRole === 'trainer' || userRole === 'faculty';
-  const studentOverviewItems = useMemo(() => navItems.filter(item => item.path === '/' || item.path === '/my-training' || item.path === '/trainer'), [navItems]);
+  const studentOverviewItems = useMemo(() => navItems.filter(item => item.path === '/' || item.path === '/my-training'), [navItems]);
+  const supervisorOverviewItems = useMemo(() => navItems.filter(item => item.path === '/trainer'), [navItems]);
   const otherItems = useMemo(() => navItems.filter(item => item.path !== '/' && item.path !== '/my-training' && item.path !== '/trainer'), [navItems]);
 
   const renderNavLink = (item) => {
@@ -494,6 +495,36 @@ export default function FTLayout() {
                 </div>
                 {studentOverviewItems.map(renderNavLink)}
               </div>
+
+              {/* Supervisor Overview Box Wrapper */}
+              {supervisorOverviewItems.length > 0 && (
+                <div style={{
+                  background: 'var(--ft-bg-input)',
+                  border: '1.5px solid var(--ft-border)',
+                  borderRadius: 'var(--ft-radius)',
+                  padding: '0.4rem',
+                  marginBottom: '0.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.2rem'
+                }}>
+                  <div style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: 'var(--ft-primary)',
+                    padding: '0.4rem 0.5rem 0.5rem',
+                    borderBottom: '1px solid var(--ft-border-light)',
+                    marginBottom: '0.25rem',
+                    fontFamily: "'Outfit', sans-serif"
+                  }}>
+                    Supervisor Overview
+                  </div>
+                  {supervisorOverviewItems.map(renderNavLink)}
+                </div>
+              )}
+
               {/* Other Items */}
               {otherItems.map(renderNavLink)}
             </>
