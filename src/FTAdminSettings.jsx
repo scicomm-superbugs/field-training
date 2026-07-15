@@ -66,6 +66,28 @@ export default function FTAdminSettings() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleApproveSupervisor = async (userId) => {
+    try {
+      await db.scientists.update(userId, { accountStatus: 'active' });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, accountStatus: 'active' } : u));
+      setToast({ type: 'success', msg: 'Supervisor approved successfully!' });
+    } catch (err) {
+      setToast({ type: 'error', msg: 'Failed to approve supervisor: ' + err.message });
+    }
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleRejectSupervisor = async (userId) => {
+    try {
+      await db.scientists.delete(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setToast({ type: 'success', msg: 'Supervisor registration rejected and deleted.' });
+    } catch (err) {
+      setToast({ type: 'error', msg: 'Failed to reject supervisor: ' + err.message });
+    }
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleApproveReset = async (reqId) => {
     try {
       await db.ft_reset_requests.update(reqId, {
@@ -185,6 +207,42 @@ export default function FTAdminSettings() {
         </div>
       </div>
 
+      {/* Pending Supervisor Approvals */}
+      {(() => {
+        const pendingSupervisors = users.filter(u => u.role === 'trainer' && u.accountStatus === 'pending');
+        if (pendingSupervisors.length === 0) return null;
+        return (
+          <div className="ft-card" style={{ maxWidth: '600px', marginBottom: '2rem', border: '1.5px solid var(--ft-primary)' }}>
+            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--ft-primary)' }}>
+              🧑‍🏫 Pending Supervisor Approvals ({pendingSupervisors.length})
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--ft-text-muted)', marginBottom: '1.25rem' }}>
+              These users registered as Supervisors/Instructors. They will not be able to log in until you approve them.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {pendingSupervisors.map(u => (
+                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1.5px solid var(--ft-border-light)', borderRadius: 'var(--ft-radius)', background: 'var(--ft-bg-card)', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{u.name} <span style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', fontWeight: 500 }}>({u.title})</span></div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', marginTop: '0.15rem' }}>
+                      Email: {u.email} · Department: {u.department}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="ft-btn ft-btn-primary ft-btn-sm" onClick={() => handleApproveSupervisor(u.id)}>
+                      Approve
+                    </button>
+                    <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ color: 'var(--ft-danger)', borderColor: 'rgba(239, 68, 68, 0.15)' }} onClick={() => handleRejectSupervisor(u.id)}>
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Role Management Card */}
       <div className="ft-card" style={{ maxWidth: '600px', marginBottom: '2rem' }}>
         <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -237,15 +295,31 @@ export default function FTAdminSettings() {
                       Make Supervisor
                     </button>
                   ) : u.role === 'trainer' ? (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        className="ft-btn ft-btn-primary ft-btn-sm"
+                        onClick={() => handleUpgradeRole(u.id, 'admin')}
+                      >
+                        Make Admin
+                      </button>
+                      <button
+                        className="ft-btn ft-btn-secondary ft-btn-sm"
+                        style={{ color: 'var(--ft-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                        onClick={() => handleUpgradeRole(u.id, 'student')}
+                      >
+                        Revoke Supervisor
+                      </button>
+                    </div>
+                  ) : u.role === 'admin' ? (
                     <button
                       className="ft-btn ft-btn-secondary ft-btn-sm"
                       style={{ color: 'var(--ft-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                      onClick={() => handleUpgradeRole(u.id, 'student')}
+                      onClick={() => handleUpgradeRole(u.id, 'trainer')}
                     >
-                      Revoke Supervisor
+                      Demote to Supervisor
                     </button>
                   ) : (
-                    <span style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>System Admin</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>System Creator</span>
                   )}
                 </div>
               ))

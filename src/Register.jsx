@@ -81,7 +81,7 @@ export default function Register() {
         universityId: isSupervisor ? '' : formData.universityId.trim(),
         title: isSupervisor ? (formData.title ? formData.title.trim() : 'Supervisor') : '',
         role: isSupervisor ? 'trainer' : 'student',
-        accountStatus: 'active', // Active immediately for easier user entry
+        accountStatus: isSupervisor ? 'pending' : 'active',
         employeeId: generatedId,
         university: 'Alamein International University',
         faculty: 'Faculty of Science',
@@ -89,7 +89,7 @@ export default function Register() {
         createdAt: new Date().toISOString()
       });
 
-      setSuccess('Registration successful! You can now log in.');
+      setSuccess(isSupervisor ? 'Registration successful! Your supervisor account is pending approval by an administrator.' : 'Registration successful! You can now log in.');
       setFormData({ name: '', username: '', email: '', password: '', confirmPassword: '', department: '', universityId: '', title: '', role: 'student' });
       setIsRegistering(false);
     } catch (err) {

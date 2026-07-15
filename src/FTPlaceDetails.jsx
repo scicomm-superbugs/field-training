@@ -790,7 +790,7 @@ export default function FTPlaceDetails() {
                                         ? `Overloaded (+${taken - capacity})` 
                                         : isWaveFull 
                                           ? 'Full' 
-                                          : `${capacity - taken}/${capacity} seats left`
+                                          : `${capacity - taken} seats left`
                                       }
                                     </span>
                                   </div>
@@ -845,7 +845,7 @@ export default function FTPlaceDetails() {
                                           ? `Overloaded (+${taken - capacity})` 
                                           : isWaveFull 
                                             ? 'Full' 
-                                            : `${capacity - taken}/${capacity} seats left`
+                                            : `${capacity - taken} seats left`
                                         }
                                       </span>
                                     </div>

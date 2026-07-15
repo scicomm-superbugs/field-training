@@ -1368,7 +1368,7 @@ export default function FTAdminPlaces() {
                                                   <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
                                                     <span>🌊 {w.name}: {waveRegs.length}/{cap} taken</span>
                                                     <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                                      {rem > 0 ? `${rem} left` : 'Full'}
+                                                      {rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full')}
                                                     </span>
                                                   </div>
                                                 );
@@ -1391,7 +1391,7 @@ export default function FTAdminPlaces() {
                                         <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem' }}>
                                           <span>🌊 {w.name}: {waveRegs.length}/{cap} taken</span>
                                           <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                            {rem > 0 ? `${rem} left` : 'Full'}
+                                            {rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full')}
                                           </span>
                                         </div>
                                       );
@@ -1403,7 +1403,7 @@ export default function FTAdminPlaces() {
                                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)' }}>
                                         <span>No program or wave configurations.</span>
                                         <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                          {rem > 0 ? `${rem} left` : 'Full'}
+                                          {rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full')}
                                         </span>
                                       </div>
                                     );

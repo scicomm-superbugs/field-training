@@ -325,6 +325,50 @@ export default function FTLayout() {
     });
   }, [userRole]);
 
+  const isStaff = userRole === 'master' || userRole === 'admin' || userRole === 'trainer' || userRole === 'faculty';
+  const studentOverviewItems = useMemo(() => navItems.filter(item => item.path === '/' || item.path === '/my-training' || item.path === '/trainer'), [navItems]);
+  const otherItems = useMemo(() => navItems.filter(item => item.path !== '/' && item.path !== '/my-training' && item.path !== '/trainer'), [navItems]);
+
+  const renderNavLink = (item) => {
+    if (item.section) {
+      return <div key={item.section} className="ft-sidebar-section-label">{item.section}</div>;
+    }
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={`ft-sidebar-link ${isActive(item.path) ? 'active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {item.icon}
+          <span>{item.label}</span>
+        </div>
+        {item.path === '/manage-places' && notificationsCount > 0 && (
+          <span style={{
+            background: 'var(--ft-danger)',
+            color: 'white',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            borderRadius: '999px',
+            padding: '0.15rem 0.45rem',
+            lineHeight: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '18px',
+            height: '18px',
+            boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
+            marginRight: '0.5rem'
+          }}>
+            {notificationsCount}
+          </span>
+        )}
+      </Link>
+    );
+  };
+
   return (
     <div className="ft-app">
       {/* ── Top Navbar ─────────────────────────────────────── */}
@@ -422,45 +466,41 @@ export default function FTLayout() {
       {sidebarOpen && <div className="ft-sidebar-overlay active" onClick={() => setSidebarOpen(false)} />}
       <aside className={`ft-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <nav className="ft-sidebar-nav">
-          {navItems.map((item, i) => {
-            if (item.section) {
-              return <div key={i} className="ft-sidebar-section-label">{item.section}</div>;
-            }
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`ft-sidebar-link ${isActive(item.path) ? 'active' : ''}`}
-                onClick={() => setSidebarOpen(false)}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  {item.icon}
-                  <span>{item.label}</span>
+          {isStaff ? (
+            <>
+              {/* Student Overview Box Wrapper */}
+              <div style={{
+                background: 'var(--ft-bg-input)',
+                border: '1.5px solid var(--ft-border)',
+                borderRadius: 'var(--ft-radius)',
+                padding: '0.4rem',
+                marginBottom: '0.75rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.2rem'
+              }}>
+                <div style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--ft-primary)',
+                  padding: '0.4rem 0.5rem 0.5rem',
+                  borderBottom: '1px solid var(--ft-border-light)',
+                  marginBottom: '0.25rem',
+                  fontFamily: "'Outfit', sans-serif"
+                }}>
+                  Student Overview
                 </div>
-                {item.path === '/manage-places' && notificationsCount > 0 && (
-                  <span style={{
-                    background: 'var(--ft-danger)',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    borderRadius: '999px',
-                    padding: '0.15rem 0.45rem',
-                    lineHeight: 1,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '18px',
-                    height: '18px',
-                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
-                    marginRight: '0.5rem'
-                  }}>
-                    {notificationsCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+                {studentOverviewItems.map(renderNavLink)}
+              </div>
+              {/* Other Items */}
+              {otherItems.map(renderNavLink)}
+            </>
+          ) : (
+            // Student: render normally
+            navItems.map(renderNavLink)
+          )}
         </nav>
 
         {/* Sidebar bottom — credit progress for students */}
