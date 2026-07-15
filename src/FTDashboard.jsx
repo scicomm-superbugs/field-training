@@ -163,25 +163,40 @@ export default function FTDashboard() {
                   <div className="ft-place-card-footer">
                     {place.department && <span className="ft-place-card-dept">{place.department}</span>}
                     {(() => {
-                      let totalCapacity = 0;
+                      const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest) || [];
+                      let remaining = 0;
+                      let hasDefinedCapacity = false;
+
                       if (place.hasPrograms && place.programs) {
                         place.programs.forEach(prog => {
+                          const progRegs = placeRegs.filter(r => r.programId === prog.id);
                           if (prog.waves && prog.waves.length > 0) {
-                            totalCapacity += prog.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+                            hasDefinedCapacity = true;
+                            prog.waves.forEach(w => {
+                              const waveRegsCount = progRegs.filter(r => r.waveId === w.id).length;
+                              const wCap = parseInt(w.capacity) || 0;
+                              remaining += Math.max(0, wCap - waveRegsCount);
+                            });
                           } else {
-                            totalCapacity += parseInt(prog.capacity) || 0;
+                            const pCap = parseInt(prog.capacity) || 0;
+                            if (pCap > 0) hasDefinedCapacity = true;
+                            remaining += Math.max(0, pCap - progRegs.length);
                           }
                         });
                       } else if (place.waves && place.waves.length > 0) {
-                        totalCapacity = place.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+                        hasDefinedCapacity = true;
+                        place.waves.forEach(w => {
+                          const waveRegsCount = placeRegs.filter(r => r.waveId === w.id).length;
+                          const wCap = parseInt(w.capacity) || 0;
+                          remaining += Math.max(0, wCap - waveRegsCount);
+                        });
                       } else {
-                        totalCapacity = parseInt(place.capacity) || 0;
+                        const pCap = parseInt(place.capacity) || 0;
+                        if (pCap > 0) hasDefinedCapacity = true;
+                        remaining = Math.max(0, pCap - placeRegs.length);
                       }
 
-                      if (!totalCapacity) return null;
-
-                      const regCount = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest).length || 0;
-                      const remaining = totalCapacity - regCount;
+                      if (!hasDefinedCapacity) return null;
 
                       return (
                         <span className="ft-place-card-spots" style={remaining <= 0 ? { color: 'var(--ft-danger)', fontWeight: 700 } : {}}>

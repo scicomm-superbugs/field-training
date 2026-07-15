@@ -103,7 +103,7 @@ export default function Register() {
       <div className="ft-card ft-animate-in" style={{ maxWidth: '420px', width: '100%', padding: '2rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'var(--ft-bg-card)', border: '1.5px solid var(--ft-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', boxShadow: 'var(--ft-shadow-md)' }}>
-            <img src="/logo.png" alt="University Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+            <img src="./logo.png" alt="University Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
           </div>
           <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.5rem', fontWeight: 800, color: 'var(--ft-primary)', marginBottom: '0.25rem' }}>
             {formData.role === 'student' ? '🎓 Student Registration' : '🧑‍🏫 Supervisor Registration'}

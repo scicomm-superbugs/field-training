@@ -250,7 +250,7 @@ export default function Login() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.0rem' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--ft-bg-card)', border: '1.5px solid var(--ft-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', boxShadow: 'var(--ft-shadow-md)' }}>
-            <img src="/logo.png" alt="University Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+            <img src="./logo.png" alt="University Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
           </div>
           <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.5rem', fontWeight: 800, color: 'var(--ft-primary)', marginBottom: '0.25rem' }}>
             {completionData ? 'Complete Registration' : resetMode === 'request' ? 'Request Password Reset' : resetMode === 'reset' ? 'Reset Password' : 'Field Training Portal'}

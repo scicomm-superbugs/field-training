@@ -1198,7 +1198,6 @@ export default function FTAdminPlaces() {
               </thead>
               <tbody>
                 {filteredPlaces.map(place => {
-                  const regCount = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest).length || 0;
                   const assignedTrainers = trainers.filter(t => place.trainerIds?.includes(t.id) || t.id === place.trainerId);
                   
                   let totalCapacity = 0;
@@ -1215,6 +1214,38 @@ export default function FTAdminPlaces() {
                   } else {
                     totalCapacity = parseInt(place.capacity) || 0;
                   }
+
+                  const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest) || [];
+                  const regCount = placeRegs.length;
+                  
+                  // Calculate remaining available spots correctly (capping wave/program overloads at 0)
+                  let remaining = 0;
+                  if (place.hasPrograms && place.programs) {
+                    place.programs.forEach(prog => {
+                      const progRegs = placeRegs.filter(r => r.programId === prog.id);
+                      if (prog.waves && prog.waves.length > 0) {
+                        prog.waves.forEach(w => {
+                          const waveRegsCount = progRegs.filter(r => r.waveId === w.id).length;
+                          const wCap = parseInt(w.capacity) || 0;
+                          remaining += Math.max(0, wCap - waveRegsCount);
+                        });
+                      } else {
+                        const pCap = parseInt(prog.capacity) || 0;
+                        remaining += Math.max(0, pCap - progRegs.length);
+                      }
+                    });
+                  } else if (place.waves && place.waves.length > 0) {
+                    place.waves.forEach(w => {
+                      const waveRegsCount = placeRegs.filter(r => r.waveId === w.id).length;
+                      const wCap = parseInt(w.capacity) || 0;
+                      remaining += Math.max(0, wCap - waveRegsCount);
+                    });
+                  } else {
+                    const pCap = parseInt(place.capacity) || 0;
+                    remaining = Math.max(0, pCap - placeRegs.length);
+                  }
+
+                  const effectiveRegCount = totalCapacity - remaining;
                   
                   return (
                     <tr key={place.id}>
@@ -1316,7 +1347,6 @@ export default function FTAdminPlaces() {
                                   if (place.hasPrograms && place.programs) {
                                     return place.programs.map(prog => {
                                       const progRegs = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.status !== 'failed' && !r.isTest) || [];
-                                      const progTestRegs = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.isTest) || [];
                                       
                                       let progCap = 0;
                                       if (prog.waves && prog.waves.length > 0) {
@@ -1332,14 +1362,13 @@ export default function FTAdminPlaces() {
                                             <div style={{ paddingLeft: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '0.15rem' }}>
                                               {prog.waves.map(w => {
                                                 const waveRegs = progRegs.filter(r => r.waveId === w.id);
-                                                const waveTest = progTestRegs.filter(r => r.waveId === w.id);
                                                 const cap = parseInt(w.capacity) || 0;
                                                 const rem = cap - waveRegs.length;
                                                 return (
                                                   <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
                                                     <span>🌊 {w.name}: {waveRegs.length}/{cap} taken</span>
                                                     <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                                      {rem > 0 ? `${rem} left` : 'Full'} {waveTest.length > 0 && `(+${waveTest.length} test)`}
+                                                      {rem > 0 ? `${rem} left` : 'Full'}
                                                     </span>
                                                   </div>
                                                 );
@@ -1347,7 +1376,7 @@ export default function FTAdminPlaces() {
                                             </div>
                                           ) : (
                                             <div style={{ paddingLeft: '0.75rem', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
-                                              No waves configured. {progTestRegs.length > 0 && `(${progTestRegs.length} test registered)`}
+                                              No waves configured.
                                             </div>
                                           )}
                                         </div>
@@ -1356,27 +1385,25 @@ export default function FTAdminPlaces() {
                                   } else if (place.waves && place.waves.length > 0) {
                                     return place.waves.map(w => {
                                       const waveRegs = registrations?.filter(r => r.placeId === place.id && r.waveId === w.id && r.status !== 'failed' && !r.isTest) || [];
-                                      const waveTest = registrations?.filter(r => r.placeId === place.id && r.waveId === w.id && r.isTest) || [];
                                       const cap = parseInt(w.capacity) || 0;
                                       const rem = cap - waveRegs.length;
                                       return (
                                         <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem' }}>
                                           <span>🌊 {w.name}: {waveRegs.length}/{cap} taken</span>
                                           <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                            {rem > 0 ? `${rem} left` : 'Full'} {waveTest.length > 0 && `(+${waveTest.length} test)`}
+                                            {rem > 0 ? `${rem} left` : 'Full'}
                                           </span>
                                         </div>
                                       );
                                     });
                                   } else {
-                                    const testRegs = registrations?.filter(r => r.placeId === place.id && r.isTest) || [];
                                     const cap = parseInt(place.capacity) || 0;
                                     const rem = cap - regCount;
                                     return (
                                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)' }}>
                                         <span>No program or wave configurations.</span>
                                         <span style={rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                          {rem > 0 ? `${rem} left` : 'Full'} {testRegs.length > 0 && `(+${testRegs.length} test)`}
+                                          {rem > 0 ? `${rem} left` : 'Full'}
                                         </span>
                                       </div>
                                     );
@@ -1389,7 +1416,7 @@ export default function FTAdminPlaces() {
                       </td>
                       <td><span className="ft-badge" style={{ background: 'var(--ft-primary-bg)', color: 'var(--ft-primary)' }}>{place.department || '—'}</span></td>
                       <td><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700 }}>{place.creditHours || 0}h</span></td>
-                      <td>{regCount}{totalCapacity ? `/${totalCapacity}` : ''}</td>
+                      <td>{effectiveRegCount}{totalCapacity ? `/${totalCapacity}` : ''}</td>
                       <td style={{ fontSize: '0.82rem' }}>
                         {assignedTrainers.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>

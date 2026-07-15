@@ -334,7 +334,7 @@ export default function FTLayout() {
             {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
           <Link to="/" className="ft-navbar-brand" style={{ textDecoration: 'none' }}>
-            <img src="/logo.png" alt="University Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
+            <img src="./logo.png" alt="University Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
             <div>
               <div className="ft-navbar-brand-text">Field Training</div>
               <div className="ft-navbar-brand-sub">{FT_FACULTY}</div>
