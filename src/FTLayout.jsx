@@ -313,9 +313,9 @@ export default function FTLayout() {
       { path: '/', icon: <LayoutDashboard size={20} />, label: 'Training Places', roles: 'all' },
       { path: '/my-training', icon: <BookOpen size={20} />, label: 'My Training', roles: ['student', 'user'] },
       { path: '/trainer', icon: <ClipboardCheck size={20} />, label: 'My Trainees', roles: ['trainer'] },
-      { section: 'Management', roles: ['master', 'admin', 'faculty', 'trainer'] },
-      { path: '/manage-places', icon: <MapPin size={20} />, label: 'Manage Places', roles: ['master', 'admin', 'faculty', 'trainer'] },
-      { path: '/students', icon: <Users size={20} />, label: 'Students', roles: ['master', 'admin', 'faculty', 'trainer'] },
+      { section: 'Management', roles: ['master', 'admin'] },
+      { path: '/manage-places', icon: <MapPin size={20} />, label: 'Manage Places', roles: ['master', 'admin'] },
+      { path: '/students', icon: <Users size={20} />, label: 'Students', roles: ['master', 'admin'] },
       { path: '/settings', icon: <Settings size={20} />, label: 'Settings', roles: ['master', 'admin'] },
     ];
     return items.filter(item => {

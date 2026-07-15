@@ -32,12 +32,12 @@ function App() {
               <Route path="my-training" element={<FTMyTraining />} />
 
               {/* Admin/Faculty places */}
-              <Route element={<FTProtectedRoute requireRole={['master', 'admin', 'faculty', 'trainer']} />}>
+              <Route element={<FTProtectedRoute requireRole={['master', 'admin']} />}>
                 <Route path="manage-places" element={<FTAdminPlaces />} />
               </Route>
 
               {/* Students list */}
-              <Route element={<FTProtectedRoute requireRole={['master', 'admin', 'faculty', 'trainer']} />}>
+              <Route element={<FTProtectedRoute requireRole={['master', 'admin']} />}>
                 <Route path="students" element={<FTAdminStudents />} />
               </Route>
 
