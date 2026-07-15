@@ -785,12 +785,10 @@ export default function FTPlaceDetails() {
                                     <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
                                       {w.name}
                                     </span>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: taken > capacity ? 'var(--ft-danger)' : isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
-                                      {taken > capacity 
-                                        ? `Overloaded (+${taken - capacity})` 
-                                        : isWaveFull 
-                                          ? 'Full' 
-                                          : `${capacity - taken} seats left`
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                      {isWaveFull 
+                                        ? 'Full' 
+                                        : `${capacity - taken} seats left`
                                       }
                                     </span>
                                   </div>
@@ -840,12 +838,10 @@ export default function FTPlaceDetails() {
                                       <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
                                         {w.name}
                                       </span>
-                                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: taken > capacity ? 'var(--ft-danger)' : isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
-                                        {taken > capacity 
-                                          ? `Overloaded (+${taken - capacity})` 
-                                          : isWaveFull 
-                                            ? 'Full' 
-                                            : `${capacity - taken} seats left`
+                                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                        {isWaveFull 
+                                          ? 'Full' 
+                                          : `${capacity - taken} seats left`
                                         }
                                       </span>
                                     </div>
