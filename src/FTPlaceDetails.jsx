@@ -1078,11 +1078,11 @@ export default function FTPlaceDetails() {
                 </div>
               )}
 
-              {allowSelfRegister ? (
+              {(allowSelfRegister && (place.hasPrograms || !myRegistrations.some(r => r.status !== 'failed'))) ? (
                 <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--ft-border-light)', paddingTop: '1rem' }}>
-                  {myRegistrations.length > 0 && (
+                  {myRegistrations.length > 0 && place.hasPrograms && (
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ft-primary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      🚀 Register for another program / wave:
+                      🚀 Register for another program:
                     </div>
                   )}
                   
@@ -1103,9 +1103,7 @@ export default function FTPlaceDetails() {
                       >
                         <option value="">-- Choose Program --</option>
                         {place.programs.map(p => {
-                          const allWavesReg = p.waves && p.waves.length > 0 && p.waves.every(w => isAlreadyRegisteredFor(p.id, w.id));
-                          const isProgReg = !p.waves || p.waves.length === 0 ? isAlreadyRegisteredFor(p.id, null) : false;
-                          const isRegisteredForProg = allWavesReg || isProgReg;
+                          const isRegisteredForProg = myRegistrations.some(r => r.programId === p.id && r.status !== 'failed');
                           return (
                             <option key={p.id} value={p.id} disabled={isRegisteredForProg}>
                               {p.name} {isRegisteredForProg ? ' (Already Enrolled)' : ''}
