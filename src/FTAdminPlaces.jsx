@@ -1591,7 +1591,7 @@ export default function FTAdminPlaces() {
                             </div>
 
                             {expandedInsights[place.id] && (
-                              <div style={{ marginTop: '0.5rem', background: 'var(--ft-bg-input)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.6rem 0.75rem', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '320px', maxWidth: '100%' }}>
+                              <div style={{ marginTop: '0.5rem', background: 'var(--ft-bg-input)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.6rem 0.75rem', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '420px', maxWidth: '100%' }}>
                                 <div style={{ fontWeight: 700, color: 'var(--ft-text-secondary)', borderBottom: '1px solid var(--ft-border-light)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>
                                   📊 Seats & Waves Insights
                                 </div>
@@ -1626,7 +1626,7 @@ export default function FTAdminPlaces() {
                                                       {w.duration && <span style={{ fontSize: '0.68rem', opacity: 0.7, paddingLeft: '1.1rem' }}>📅 {w.duration}</span>}
                                                     </div>
                                                     <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                                      {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                                      {isPast ? `Passed${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                                     </span>
                                                   </div>
                                                 );
@@ -1655,7 +1655,7 @@ export default function FTAdminPlaces() {
                                             {w.duration && <span style={{ fontSize: '0.7rem', opacity: 0.7, paddingLeft: '1.1rem' }}>📅 {w.duration}</span>}
                                           </div>
                                           <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                            {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                            {isPast ? `Passed${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                           </span>
                                         </div>
                                       );
