@@ -1619,9 +1619,9 @@ export default function FTAdminPlaces() {
                                                 const rem = cap - waveRegs.length;
                                                 return (
                                                   <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
-                                                    <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} taken</span>
+                                                    <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} students</span>
                                                     <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                                      {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                                      {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : 'Full')}
                                                     </span>
                                                   </div>
                                                 );
@@ -1643,9 +1643,9 @@ export default function FTAdminPlaces() {
                                       const rem = cap - waveRegs.length;
                                       return (
                                         <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem' }}>
-                                          <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} taken</span>
+                                          <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} students</span>
                                           <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                            {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                            {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : 'Full')}
                                           </span>
                                         </div>
                                       );
