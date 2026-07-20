@@ -5,6 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { Search, Download, X } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 import { FT_DEPARTMENTS, FT_REG_STATUS_ICONS, FT_REG_STATUS_LABELS, FT_DEFAULT_REQUIRED_HOURS } from './ftConstants';
+import { getUserConflicts } from './ftConflictUtils';
 
 export default function FTAdminStudents() {
   const { registrations, places, settings, meDoc, userRole } = useOutletContext();
@@ -67,8 +68,10 @@ export default function FTAdminStudents() {
 
       const deptRequired = settingsDoc?.departmentOverrides?.[s.department] || requiredHours;
       const pct = deptRequired > 0 ? Math.min(100, Math.round((completed / deptRequired) * 100)) : 0;
+      
+      const conflicts = getUserConflicts(s.id, registrations, places);
 
-      return { ...s, registered, completed, required: deptRequired, pct, regs: myRegs };
+      return { ...s, registered, completed, required: deptRequired, pct, regs: myRegs, hasConflicts: conflicts.length > 0 };
     });
   }, [students, registrations, places, settingsDoc, requiredHours]);
 
@@ -178,6 +181,7 @@ export default function FTAdminStudents() {
   const completedStudents = enrichedStudents.filter(s => s.pct >= 100).length;
   const inProgressStudents = enrichedStudents.filter(s => s.pct > 0 && s.pct < 100).length;
   const notStartedStudents = enrichedStudents.filter(s => s.pct === 0).length;
+  const conflictedStudents = enrichedStudents.filter(s => s.hasConflicts).length;
 
   return (
     <>
@@ -220,6 +224,13 @@ export default function FTAdminStudents() {
           <div>
             <div className="ft-stat-value" style={{ color: 'var(--ft-warning)' }}>{notStartedStudents}</div>
             <div className="ft-stat-label">Not Started</div>
+          </div>
+        </div>
+        <div className="ft-stat-card">
+          <div className="ft-stat-icon" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>⚠️</div>
+          <div>
+            <div className="ft-stat-value" style={{ color: 'var(--ft-danger)' }}>{conflictedStudents}</div>
+            <div className="ft-stat-label">Conflicted</div>
           </div>
         </div>
       </div>
