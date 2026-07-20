@@ -1453,19 +1453,13 @@ export default function FTAdminPlaces() {
                   if (place.hasPrograms && place.programs) {
                     place.programs.forEach(prog => {
                       if (prog.waves && prog.waves.length > 0) {
-                        totalCapacity += prog.waves.reduce((sum, w) => {
-                          const isPast = w.deadline ? new Date(w.deadline) < now : false;
-                          return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
-                        }, 0);
+                        totalCapacity += prog.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
                       } else {
                         totalCapacity += parseInt(prog.capacity) || 0;
                       }
                     });
                   } else if (place.waves && place.waves.length > 0) {
-                    totalCapacity = place.waves.reduce((sum, w) => {
-                      const isPast = w.deadline ? new Date(w.deadline) < now : false;
-                      return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
-                    }, 0);
+                    totalCapacity = place.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
                   } else {
                     totalCapacity = parseInt(place.capacity) || 0;
                   }
@@ -1502,7 +1496,7 @@ export default function FTAdminPlaces() {
                     remaining = Math.max(0, pCap - placeRegs.length);
                   }
 
-                  const effectiveRegCount = totalCapacity - remaining;
+                  // const effectiveRegCount = totalCapacity - remaining;
                   
                   return (
                     <tr key={place.id}>
@@ -1675,7 +1669,17 @@ export default function FTAdminPlaces() {
                       </td>
                       <td><span className="ft-badge" style={{ background: 'var(--ft-primary-bg)', color: 'var(--ft-primary)' }}>{place.department || '—'}</span></td>
                       <td><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700 }}>{place.creditHours || 0}h</span></td>
-                      <td>{effectiveRegCount}{totalCapacity ? `/${totalCapacity}` : ''}</td>
+                      <td>
+                        <span style={{ color: regCount > totalCapacity ? 'var(--ft-danger)' : 'inherit', fontWeight: regCount > totalCapacity ? 700 : 'normal' }}>
+                          {regCount}
+                        </span>
+                        {totalCapacity ? `/${totalCapacity}` : ''}
+                        {regCount > totalCapacity && (
+                          <span style={{ color: 'var(--ft-danger)', fontSize: '0.7rem', marginLeft: '0.25rem', fontWeight: 700 }}>
+                            (+{regCount - totalCapacity})
+                          </span>
+                        )}
+                      </td>
                       <td style={{ fontSize: '0.82rem' }}>
                         {assignedTrainers.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
