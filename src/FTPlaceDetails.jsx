@@ -868,34 +868,12 @@ export default function FTPlaceDetails() {
                   <span className="ft-place-info-label">Department</span>
                   <span className="ft-place-info-value">{place.department || '—'}</span>
                 </div>
-                {isStaff && (
-                  <div className="ft-place-info-row">
-                    <Users size={16} style={{ color: 'var(--ft-text-muted)' }} />
-                    <span className="ft-place-info-label">Registered</span>
-                    <span className="ft-place-info-value" style={totalCapacity && regCount > totalCapacity ? { color: 'var(--ft-danger)', fontWeight: 700 } : {}}>
-                      {regCount} students{totalCapacity && regCount > totalCapacity ? ' ⚠️' : ''}
-                    </span>
-                  </div>
-                )}
                 {totalCapacity > 0 && (
                   <div className="ft-place-info-row">
                     <Building2 size={16} style={{ color: 'var(--ft-text-muted)' }} />
-                    <span className="ft-place-info-label">{isStaff ? 'Capacity' : 'Available Seats'}</span>
-                    <span className="ft-place-info-value">
-                      {isStaff ? (
-                        <>
-                          {totalCapacity} spots
-                          {regCount > totalCapacity && (
-                            <span style={{ marginLeft: '0.4rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                              +{regCount - totalCapacity} overload
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span style={{ color: remainingSpots > 0 ? 'inherit' : 'var(--ft-danger)', fontWeight: remainingSpots > 0 ? 'normal' : 700 }}>
-                          {remainingSpots > 0 ? `${remainingSpots} spots` : 'Full'}
-                        </span>
-                      )}
+                    <span className="ft-place-info-label">Capacity</span>
+                    <span className="ft-place-info-value" style={{ color: remainingSpots > 0 ? 'inherit' : 'var(--ft-danger)', fontWeight: remainingSpots > 0 ? 'normal' : 700 }}>
+                      {remainingSpots}/{totalCapacity} spots
                     </span>
                   </div>
                 )}
