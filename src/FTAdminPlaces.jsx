@@ -1620,8 +1620,11 @@ export default function FTAdminPlaces() {
                                                 const actualCap = parseInt(w.capacity) || 0;
                                                 const actualRem = actualCap - waveRegs.length;
                                                 return (
-                                                  <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
-                                                    <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
+                                                  <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem', marginBottom: '0.2rem' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                      <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
+                                                      {w.duration && <span style={{ fontSize: '0.68rem', opacity: 0.7, paddingLeft: '1.1rem' }}>📅 {w.duration}</span>}
+                                                    </div>
                                                     <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
                                                       {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                                     </span>
@@ -1646,8 +1649,11 @@ export default function FTAdminPlaces() {
                                       const actualCap = parseInt(w.capacity) || 0;
                                       const actualRem = actualCap - waveRegs.length;
                                       return (
-                                        <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem' }}>
-                                          <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
+                                        <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem', marginBottom: '0.2rem' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
+                                            {w.duration && <span style={{ fontSize: '0.7rem', opacity: 0.7, paddingLeft: '1.1rem' }}>📅 {w.duration}</span>}
+                                          </div>
                                           <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
                                             {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                           </span>
