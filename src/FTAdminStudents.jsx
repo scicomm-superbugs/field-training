@@ -87,7 +87,8 @@ export default function FTAdminStudents() {
       const matchStatus = statusFilter === 'All' ||
         (statusFilter === 'completed' && s.pct >= 100) ||
         (statusFilter === 'in-progress' && s.pct > 0 && s.pct < 100) ||
-        (statusFilter === 'not-started' && s.pct === 0);
+        (statusFilter === 'not-started' && s.pct === 0) ||
+        (statusFilter === 'conflicted' && s.hasConflicts);
       return matchSearch && matchDept && matchStatus;
     });
   }, [enrichedStudents, search, deptFilter, statusFilter]);
@@ -198,35 +199,35 @@ export default function FTAdminStudents() {
 
       {/* Stats */}
       <div className="ft-stats-grid">
-        <div className="ft-stat-card">
+        <div className={`ft-stat-card ${statusFilter === 'All' ? 'active-filter' : ''}`} style={{ cursor: 'pointer', outline: statusFilter === 'All' ? '2px solid var(--ft-primary)' : 'none' }} onClick={() => setStatusFilter('All')}>
           <div className="ft-stat-icon" style={{ background: 'var(--ft-primary-bg)' }}>👥</div>
           <div>
             <div className="ft-stat-value">{totalStudents}</div>
             <div className="ft-stat-label">Total Students</div>
           </div>
         </div>
-        <div className="ft-stat-card">
+        <div className={`ft-stat-card ${statusFilter === 'completed' ? 'active-filter' : ''}`} style={{ cursor: 'pointer', outline: statusFilter === 'completed' ? '2px solid var(--ft-success)' : 'none' }} onClick={() => setStatusFilter('completed')}>
           <div className="ft-stat-icon" style={{ background: 'var(--ft-success-bg)' }}>✅</div>
           <div>
             <div className="ft-stat-value" style={{ color: 'var(--ft-success)' }}>{completedStudents}</div>
             <div className="ft-stat-label">Completed</div>
           </div>
         </div>
-        <div className="ft-stat-card">
+        <div className={`ft-stat-card ${statusFilter === 'in-progress' ? 'active-filter' : ''}`} style={{ cursor: 'pointer', outline: statusFilter === 'in-progress' ? '2px solid var(--ft-info)' : 'none' }} onClick={() => setStatusFilter('in-progress')}>
           <div className="ft-stat-icon" style={{ background: 'var(--ft-info-bg)' }}>🔵</div>
           <div>
             <div className="ft-stat-value" style={{ color: 'var(--ft-info)' }}>{inProgressStudents}</div>
             <div className="ft-stat-label">In Progress</div>
           </div>
         </div>
-        <div className="ft-stat-card">
+        <div className={`ft-stat-card ${statusFilter === 'not-started' ? 'active-filter' : ''}`} style={{ cursor: 'pointer', outline: statusFilter === 'not-started' ? '2px solid var(--ft-warning)' : 'none' }} onClick={() => setStatusFilter('not-started')}>
           <div className="ft-stat-icon" style={{ background: 'var(--ft-warning-bg)' }}>🟡</div>
           <div>
             <div className="ft-stat-value" style={{ color: 'var(--ft-warning)' }}>{notStartedStudents}</div>
             <div className="ft-stat-label">Not Started</div>
           </div>
         </div>
-        <div className="ft-stat-card">
+        <div className={`ft-stat-card ${statusFilter === 'conflicted' ? 'active-filter' : ''}`} style={{ cursor: 'pointer', outline: statusFilter === 'conflicted' ? '2px solid var(--ft-danger)' : 'none' }} onClick={() => setStatusFilter('conflicted')}>
           <div className="ft-stat-icon" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>⚠️</div>
           <div>
             <div className="ft-stat-value" style={{ color: 'var(--ft-danger)' }}>{conflictedStudents}</div>
@@ -246,9 +247,9 @@ export default function FTAdminStudents() {
           {FT_DEPARTMENTS.map(d => <button key={d} className={`ft-chip ${deptFilter === d ? 'active' : ''}`} onClick={() => setDeptFilter(d)}>{d}</button>)}
         </div>
         <div className="ft-filter-chips">
-          {['All', 'completed', 'in-progress', 'not-started'].map(s => (
+          {['All', 'completed', 'in-progress', 'not-started', 'conflicted'].map(s => (
             <button key={s} className={`ft-chip ${statusFilter === s ? 'active' : ''}`} onClick={() => setStatusFilter(s)}>
-              {s === 'All' ? 'All Status' : s === 'completed' ? '✅ Completed' : s === 'in-progress' ? '🔵 In Progress' : '🟡 Not Started'}
+              {s === 'All' ? 'All Status' : s === 'completed' ? '✅ Completed' : s === 'in-progress' ? '🔵 In Progress' : s === 'not-started' ? '🟡 Not Started' : '⚠️ Conflicted'}
             </button>
           ))}
         </div>
