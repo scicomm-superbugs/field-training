@@ -22,6 +22,7 @@ export default function FTPlaceDetails() {
   const [editingRegId, setEditingRegId] = useState(null);
   const [paymentReceipt, setPaymentReceipt] = useState('');
   const [receiptInputKey, setReceiptInputKey] = useState(0);
+  const [paymentShake, setPaymentShake] = useState(false);
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [changeProgramId, setChangeProgramId] = useState('');
   const [changeWaveId, setChangeWaveId] = useState('');
@@ -328,7 +329,11 @@ export default function FTPlaceDetails() {
 
     const paymentRequired = chosenWave?.payToRegister || chosenProgram?.payToRegister || place?.payToRegister || false;
     if (paymentRequired && !paymentReceipt) {
-      setToast({ type: 'error', msg: 'Please upload your payment receipt.' });
+      setToast({ type: 'error', msg: 'Please upload your payment receipt to complete registration.' });
+      const el = document.getElementById('payment-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPaymentShake(true);
+      setTimeout(() => setPaymentShake(false), 800);
       setTimeout(() => setToast(null), 3000);
       return;
     }
@@ -1290,7 +1295,10 @@ export default function FTPlaceDetails() {
 
                   {/* Payment Alert & Reference Input */}
                   {paymentRequired && (
-                    <div style={{ 
+                    <div 
+                      id="payment-section"
+                      className={paymentShake ? 'ft-shake' : ''}
+                      style={{ 
                       background: 'rgba(13, 148, 136, 0.05)', 
                       border: '1.5px solid var(--ft-primary)', 
                       borderRadius: 'var(--ft-radius)',
@@ -1299,7 +1307,8 @@ export default function FTPlaceDetails() {
                       marginBottom: '1rem',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.65rem'
+                      gap: '0.65rem',
+                      transition: 'all 0.3s'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--ft-primary)', fontSize: '0.9rem' }}>
                         💰 Payment Required
@@ -1373,13 +1382,12 @@ export default function FTPlaceDetails() {
                     </div>
                   )}
 
-                  {/* Submit Registration Button */}
                   <div style={{ marginTop: '1rem' }}>
                     <button
                       className="ft-btn ft-btn-primary ft-btn-lg ft-w-full"
                       onClick={handleRegister}
-                      disabled={registering || isPastDeadline || isFull || (place.waves && place.waves.length > 0 && !selectedWaveId) || (place.hasPrograms && !selectedProgramId) || (paymentRequired && !paymentReceipt)}
-                      style={(isFull || isPastDeadline) ? { opacity: 0.5 } : {}}
+                      disabled={registering || isPastDeadline || isFull || (place.waves && place.waves.length > 0 && !selectedWaveId) || (place.hasPrograms && !selectedProgramId)}
+                      style={(isFull || isPastDeadline || (paymentRequired && !paymentReceipt)) ? { opacity: 0.5 } : {}}
                     >
                       {registering 
                         ? 'Registering...' 

@@ -321,6 +321,24 @@
   font-weight: 500;
 }
 
+.ft-credit-item .ft-profile-value {
+  color: var(--ft-text);
+  font-weight: 600;
+}
+
+.ft-shake {
+  animation: ft-shake-anim 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  border-color: var(--ft-danger) !important;
+  background-color: rgba(239, 68, 68, 0.05) !important;
+}
+
+@keyframes ft-shake-anim {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
 .ft-credit-item .ft-credit-value {
   font-family: 'Outfit', sans-serif;
   font-size: 0.9rem;
