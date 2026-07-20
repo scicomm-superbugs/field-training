@@ -797,12 +797,12 @@ export default function FTPlaceDetails() {
                   </div>
                 )}
                 {trainerDocs.length > 0 && (
-                  <div className="ft-place-info-row" style={{ alignItems: 'flex-start' }}>
+                  <div className="ft-place-info-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <User size={16} style={{ color: 'var(--ft-text-muted)', marginTop: '0.2rem' }} />
                     <span className="ft-place-info-label">Trainer{trainerDocs.length > 1 ? 's' : ''}</span>
-                    <span className="ft-place-info-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                    <span className="ft-place-info-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', marginLeft: 'auto', textAlign: 'right' }}>
                       {trainerDocs.map(t => (
-                        <span key={t.id}>{t.name}</span>
+                        <span key={t.id} style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
                       ))}
                     </span>
                   </div>
