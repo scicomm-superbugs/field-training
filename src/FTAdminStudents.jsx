@@ -16,6 +16,7 @@ export default function FTAdminStudents() {
   const [deptFilter, setDeptFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [expandedStudent, setExpandedStudent] = useState(null);
+  const [hasSwipedTable, setHasSwipedTable] = useState(false);
 
   const [editingStudent, setEditingStudent] = useState(null);
   const [confirmDeleteStudentId, setConfirmDeleteStudentId] = useState(null);
@@ -286,7 +287,7 @@ export default function FTAdminStudents() {
           <div className="ft-empty-text">Adjust your search or filter criteria.</div>
         </div>
       ) : (
-        <div className="ft-table-wrapper">
+        <div className="ft-table-wrapper" onScroll={(e) => { if (e.target.scrollLeft > 10) setHasSwipedTable(true); }}>
           <table className="ft-table" style={{ tableLayout: 'fixed', width: '100%', minWidth: '890px' }}>
             <thead>
               <tr>
@@ -303,7 +304,8 @@ export default function FTAdminStudents() {
               {filtered.map(s => (
                 <Fragment key={s.id}>
                   <tr onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)} style={{ cursor: 'pointer' }}>
-                    <td style={{ width: '110px' }}>
+                    <td style={{ width: '110px', position: 'relative' }}>
+                      {!hasSwipedTable && <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
                       <span style={{ 
                         fontFamily: "'Outfit', sans-serif", 
                         fontWeight: 700, 

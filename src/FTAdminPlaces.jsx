@@ -185,7 +185,7 @@ export default function FTAdminPlaces() {
   const [showEnrolledModal, setShowEnrolledModal] = useState(false);
   const [enrolledSearch, setEnrolledSearch] = useState('');
   const [confirmDeleteEnrollmentReg, setConfirmDeleteEnrollmentReg] = useState(null);
-
+  const [hasSwipedEnrolledTable, setHasSwipedEnrolledTable] = useState(false);
   // Manual enrollment form states
   const [showEnrollForm, setShowEnrollForm] = useState(false);
   const [enrollStudentId, setEnrollStudentId] = useState('');
@@ -2596,7 +2596,7 @@ export default function FTAdminPlaces() {
                     🔍 No students matched your search.
                   </div>
                 ) : (
-                  <div className="ft-table-wrapper" style={{ margin: 0, border: '1.5px solid var(--ft-border)', width: '100%', overflowX: 'auto' }}>
+                  <div className="ft-table-wrapper" style={{ margin: 0, border: '1.5px solid var(--ft-border)', width: '100%', overflowX: 'auto' }} onScroll={(e) => { if (e.target.scrollLeft > 10) setHasSwipedEnrolledTable(true); }}>
                     <table className="ft-table" style={{ fontSize: '0.85rem' }}>
                       <thead>
                         <tr>
@@ -2621,7 +2621,8 @@ export default function FTAdminPlaces() {
 
                           return (
                             <tr key={reg.id}>
-                              <td>
+                              <td style={{ position: 'relative' }}>
+                                {!hasSwipedEnrolledTable && <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
                                 <div style={{ fontWeight: 600, color: 'var(--ft-text)' }}>
                                   {dispName} {reg.isTest && <span style={{ color: 'var(--ft-primary)', fontSize: '0.72rem', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>Test</span>}
                                 </div>
