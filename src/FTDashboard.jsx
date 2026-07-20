@@ -166,6 +166,7 @@ export default function FTDashboard() {
                       const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest) || [];
                       let remaining = 0;
                       let hasDefinedCapacity = false;
+                      const now = new Date();
 
                       if (place.hasPrograms && place.programs) {
                         place.programs.forEach(prog => {
@@ -174,7 +175,8 @@ export default function FTDashboard() {
                             hasDefinedCapacity = true;
                             prog.waves.forEach(w => {
                               const waveRegsCount = progRegs.filter(r => r.waveId === w.id).length;
-                              const wCap = parseInt(w.capacity) || 0;
+                              const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                              const wCap = isPast ? 0 : (parseInt(w.capacity) || 0);
                               remaining += Math.max(0, wCap - waveRegsCount);
                             });
                           } else {
@@ -187,7 +189,8 @@ export default function FTDashboard() {
                         hasDefinedCapacity = true;
                         place.waves.forEach(w => {
                           const waveRegsCount = placeRegs.filter(r => r.waveId === w.id).length;
-                          const wCap = parseInt(w.capacity) || 0;
+                          const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                          const wCap = isPast ? 0 : (parseInt(w.capacity) || 0);
                           remaining += Math.max(0, wCap - waveRegsCount);
                         });
                       } else {
