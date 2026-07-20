@@ -2619,7 +2619,7 @@ export default function FTAdminPlaces() {
                           return (
                             <tr key={reg.id}>
                               <td style={{ position: 'relative' }}>
-                                {!hasSwipedEnrolledTable && <div className="ft-swipe-indicator" style={{ left: 'calc(100vw - 160px)', right: 'auto', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
+                                {!hasSwipedEnrolledTable && <div className="ft-swipe-indicator" style={{ left: 'calc(100vw - 190px)', right: 'auto', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
                                 <div style={{ fontWeight: 600, color: 'var(--ft-text)' }}>
                                   {dispName} {reg.isTest && <span style={{ color: 'var(--ft-primary)', fontSize: '0.72rem', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>Test</span>}
                                 </div>
