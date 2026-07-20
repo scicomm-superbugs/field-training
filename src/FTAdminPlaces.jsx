@@ -1685,9 +1685,6 @@ export default function FTAdminPlaces() {
                                   }
                                 })()}
                                 </div>
-                                <div className="ft-swipe-indicator">
-                                  👈 Swipe
-                                </div>
                               </div>
                             )}
                           </div>
