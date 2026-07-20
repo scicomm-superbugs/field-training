@@ -1122,7 +1122,7 @@ export default function FTLayout() {
                 </div>
                 <div className="ft-update-section">
                   <h4>📝 Apply to Multiple Programs</h4>
-                  <p>Students can now register for more than one training program or wave at the same place, unlocking flexible scheduling.</p>
+                  <p>Students can now register for more than one training program at the same place! However, to ensure fairness, you can only select exactly 1 wave per program (or 1 wave total if the place has no programs).</p>
                 </div>
                 <div className="ft-update-section">
                   <h4>🔔 Real-Time Approval Notifications</h4>
