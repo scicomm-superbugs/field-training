@@ -1881,18 +1881,7 @@ export default function FTAdminPlaces() {
                   </label>
                 </div>
 
-                <div className="ft-input-group" style={{ marginBottom: '1rem' }}>
-                  <label className="ft-label">📅 Registration Deadline (optional)</label>
-                  <input
-                    type="datetime-local"
-                    className="ft-input"
-                    value={form.registrationDeadline}
-                    onChange={e => setForm(f => ({ ...f, registrationDeadline: e.target.value }))}
-                  />
-                  <small style={{ fontSize: '0.74rem', color: 'var(--ft-text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                    After this deadline, registrations are locked and pending registrations are approved automatically.
-                  </small>
-                </div>
+
 
                 {/* Root Place Payment Settings */}
                 <div style={{ background: 'var(--ft-bg-card)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.85rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -2126,7 +2115,7 @@ export default function FTAdminPlaces() {
                                          </div>
                                          {/* Wave-specific Deadline */}
                                          <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>📅 Wave Deadline</span>
+                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>📅 Wave Registration Deadline</span>
                                            <input 
                                              type="datetime-local" 
                                              className="ft-input" 
@@ -2264,7 +2253,7 @@ export default function FTAdminPlaces() {
 
                                {/* Wave Deadline */}
                                <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>📅 Wave Deadline</span>
+                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>📅 Wave Registration Deadline</span>
                                  <input 
                                    type="datetime-local" 
                                    className="ft-input" 
