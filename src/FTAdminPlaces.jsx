@@ -1440,8 +1440,9 @@ export default function FTAdminPlaces() {
             <button className="ft-btn ft-btn-primary" onClick={openAddModal}><Plus size={16} /> Add Place</button>
           </div>
         ) : (
-          <div className="ft-table-wrapper">
-            <table className="ft-table" style={{ minWidth: '950px' }}>
+          <div style={{ position: 'relative' }}>
+            <div className="ft-table-wrapper">
+              <table className="ft-table" style={{ minWidth: '950px' }}>
               <thead>
                 <tr>
                   <th>Place</th>
@@ -1732,6 +1733,10 @@ export default function FTAdminPlaces() {
               </tbody>
             </table>
           </div>
+          <div className="ft-swipe-indicator">
+            👈 Swipe
+          </div>
+        </div>
         )}
       </div>
 
