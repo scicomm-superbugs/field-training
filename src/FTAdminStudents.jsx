@@ -241,23 +241,23 @@ export default function FTAdminStudents() {
         </div>
       ) : (
         <div className="ft-table-wrapper">
-          <table className="ft-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <table className="ft-table" style={{ tableLayout: 'fixed', width: '100%', minWidth: '890px' }}>
             <thead>
               <tr>
-                <th style={{ width: '14%' }}>University ID</th>
-                <th style={{ width: '26%' }}>Student</th>
-                <th style={{ width: '18%' }}>Department</th>
-                <th style={{ width: '10%' }}>Registered</th>
-                <th style={{ width: '10%' }}>Completed</th>
-                <th style={{ width: '12%' }}>Progress</th>
-                <th style={{ width: '10%' }}>Status</th>
+                <th style={{ width: '110px' }}>University ID</th>
+                <th style={{ width: '220px' }}>Student</th>
+                <th style={{ width: '150px' }}>Department</th>
+                <th style={{ width: '95px' }}>Registered</th>
+                <th style={{ width: '95px' }}>Completed</th>
+                <th style={{ width: '125px' }}>Progress</th>
+                <th style={{ width: '95px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(s => (
                 <Fragment key={s.id}>
                   <tr onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)} style={{ cursor: 'pointer' }}>
-                    <td style={{ width: '14%' }}>
+                    <td style={{ width: '110px' }}>
                       <span style={{ 
                         fontFamily: "'Outfit', sans-serif", 
                         fontWeight: 700, 
@@ -271,7 +271,7 @@ export default function FTAdminStudents() {
                         {s.universityId || '—'}
                       </span>
                     </td>
-                    <td style={{ width: '26%' }}>
+                    <td style={{ width: '220px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{ width: '36px', height: '36px', borderRadius: 'var(--ft-radius-full)', background: 'var(--ft-primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 700, color: 'var(--ft-primary)', flexShrink: 0, overflow: 'hidden' }}>
                           {s.avatar ? <img src={s.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (s.name || '?')[0].toUpperCase()}
@@ -282,10 +282,10 @@ export default function FTAdminStudents() {
                         </div>
                       </div>
                     </td>
-                    <td style={{ width: '18%' }}><span style={{ fontSize: '0.82rem', color: 'var(--ft-text-secondary)' }}>{s.department || '—'}</span></td>
-                    <td style={{ width: '10%' }}><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{s.registered}h</span></td>
-                    <td style={{ width: '10%' }}><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, color: 'var(--ft-success)' }}>{s.completed}h</span></td>
-                    <td style={{ width: '12%' }}>
+                    <td style={{ width: '150px' }}><span style={{ fontSize: '0.82rem', color: 'var(--ft-text-secondary)' }}>{s.department || '—'}</span></td>
+                    <td style={{ width: '95px' }}><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{s.registered}h</span></td>
+                    <td style={{ width: '95px' }}><span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, color: 'var(--ft-success)' }}>{s.completed}h</span></td>
+                    <td style={{ width: '125px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div className="ft-progress-bar" style={{ width: '70px', height: '6px' }}>
                           <div className="ft-progress-bar-fill" style={{
@@ -296,7 +296,7 @@ export default function FTAdminStudents() {
                         <span style={{ fontSize: '0.78rem', fontWeight: 700, color: s.pct >= 100 ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{s.pct}%</span>
                       </div>
                     </td>
-                    <td style={{ width: '10%' }}>
+                    <td style={{ width: '95px' }}>
                       {s.pct >= 100 ? (
                         <span className="ft-badge ft-badge-completed">Done</span>
                       ) : s.pct > 0 ? (

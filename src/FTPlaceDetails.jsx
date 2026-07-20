@@ -18,6 +18,9 @@ export default function FTPlaceDetails() {
   const [selectedWaveId, setSelectedWaveId] = useState('');
   const [confirmDeleteRegId, setConfirmDeleteRegId] = useState(null);
 
+  const [editingRegId, setEditingRegId] = useState(null);
+  const [paymentReceipt, setPaymentReceipt] = useState('');
+  const [receiptInputKey, setReceiptInputKey] = useState(0);
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [changeProgramId, setChangeProgramId] = useState('');
   const [changeWaveId, setChangeWaveId] = useState('');
@@ -64,10 +67,18 @@ export default function FTPlaceDetails() {
     })();
   }, [place?.trainerIds, place?.trainerId]);
 
-  const myRegistration = useMemo(() => {
-    if (!registrations) return null;
-    return registrations.find(r => r.placeId === placeId && r.studentId === userId);
+  const myRegistrations = useMemo(() => {
+    if (!registrations) return [];
+    return registrations.filter(r => r.placeId === placeId && r.studentId === userId);
   }, [registrations, placeId, userId]);
+
+  const isAlreadyRegisteredFor = (programId, waveId) => {
+    return myRegistrations.some(r => 
+      (r.programId || null) === (programId || null) && 
+      (r.waveId || null) === (waveId || null) &&
+      r.status !== 'failed'
+    );
+  };
 
   const regCount = useMemo(() => {
     if (!registrations) return 0;
@@ -143,6 +154,36 @@ export default function FTPlaceDetails() {
     return new Date(place.registrationDeadline) < new Date();
   }, [place]);
 
+  const selectedWave = useMemo(() => {
+    if (!place) return null;
+    if (place.hasPrograms && selectedProgramId) {
+      const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
+      return chosenProgram?.waves?.find(w => w.id === selectedWaveId);
+    }
+    return place.waves?.find(w => w.id === selectedWaveId);
+  }, [place, selectedProgramId, selectedWaveId]);
+
+  const selectedProgram = useMemo(() => {
+    if (!place || !place.hasPrograms || !selectedProgramId) return null;
+    return place.programs.find(p => p.id === selectedProgramId);
+  }, [place, selectedProgramId]);
+
+  const paymentRequired = useMemo(() => {
+    if (!place) return false;
+    if (selectedWave && selectedWave.payToRegister) return true;
+    if (selectedProgram && selectedProgram.payToRegister) return true;
+    if (place.payToRegister) return true;
+    return false;
+  }, [place, selectedProgram, selectedWave]);
+
+  const activePaymentLink = useMemo(() => {
+    if (!place) return '';
+    if (selectedWave && selectedWave.payToRegister && selectedWave.paymentLink) return selectedWave.paymentLink;
+    if (selectedProgram && selectedProgram.payToRegister && selectedProgram.paymentLink) return selectedProgram.paymentLink;
+    if (place.payToRegister && place.paymentLink) return place.paymentLink;
+    return '';
+  }, [place, selectedProgram, selectedWave]);
+
   const needsApproval = useMemo(() => {
     if (!place) return false;
     const isLocked = !allowSelfRegister;
@@ -152,13 +193,15 @@ export default function FTPlaceDetails() {
   }, [place, allowSelfRegister, isFull, isPastDeadline]);
 
   const displayHours = useMemo(() => {
-    if (myRegistration) return myRegistration.creditHours || 0;
+    if (myRegistrations && myRegistrations.length > 0) {
+      return myRegistrations.reduce((acc, r) => acc + (r.creditHours || 0), 0);
+    }
     if (place?.hasPrograms && place.programs && selectedProgramId) {
       const prog = place.programs.find(p => p.id === selectedProgramId);
       if (prog) return parseInt(prog.creditHours) || 0;
     }
     return place?.creditHours || 0;
-  }, [place, myRegistration, selectedProgramId]);
+  }, [place, myRegistrations, selectedProgramId]);
 
   const placeRegs = useMemo(() => {
     if (!registrations) return [];
@@ -177,7 +220,32 @@ export default function FTPlaceDetails() {
   };
 
   const handleRegister = async () => {
-    if (myRegistration || registering) return;
+    if (registering) return;
+
+    if (isAlreadyRegisteredFor(selectedProgramId, selectedWaveId)) {
+      setToast({ type: 'error', msg: 'You are already registered for this program and wave combination.' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    const chosenProgram = place?.hasPrograms ? place.programs.find(p => p.id === selectedProgramId) : null;
+    const chosenWave = place?.hasPrograms 
+      ? chosenProgram?.waves?.find(w => w.id === selectedWaveId) 
+      : place?.waves?.find(w => w.id === selectedWaveId);
+
+    const isWavePastDeadline = chosenWave?.deadline ? new Date(chosenWave.deadline) < new Date() : false;
+    if (isWavePastDeadline) {
+      setToast({ type: 'error', msg: 'The registration deadline for this wave has passed.' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    const paymentRequired = chosenWave?.payToRegister || chosenProgram?.payToRegister || place?.payToRegister || false;
+    if (paymentRequired && !paymentReceipt) {
+      setToast({ type: 'error', msg: 'Please upload your payment receipt.' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
 
     if (place?.hasPrograms) {
       if (!selectedProgramId) {
@@ -185,7 +253,6 @@ export default function FTPlaceDetails() {
         setTimeout(() => setToast(null), 3000);
         return;
       }
-      const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
       if (chosenProgram?.waves && chosenProgram.waves.length > 0 && !selectedWaveId) {
         setToast({ type: 'error', msg: 'Please select a training wave/duration for your selected program.' });
         setTimeout(() => setToast(null), 3000);
@@ -193,7 +260,6 @@ export default function FTPlaceDetails() {
       }
 
       setRegistering(true);
-      const chosenWave = chosenProgram?.waves?.find(w => w.id === selectedWaveId);
 
       try {
         await db.ft_registrations.add({
@@ -210,9 +276,29 @@ export default function FTPlaceDetails() {
           studentUniversityId: meDoc?.universityId || '',
           waveId: selectedWaveId || null,
           waveName: chosenWave ? `${chosenWave.name} (${chosenWave.duration})` : null,
+          paymentRequired: paymentRequired,
+          paymentReceipt: paymentRequired ? paymentReceipt : null
+        });
+
+        // Create admin notification
+        await db.ft_notifications.add({
+          title: 'New Registration Request',
+          message: `${meDoc?.name || 'A student'} requested to register for ${place.name}${chosenWave ? ` (${chosenWave.name})` : ''}`,
+          type: 'registration_request',
+          status: 'unread',
+          targetRoles: ['admin', 'master', 'faculty'],
+          targetUserId: null,
+          studentId: userId,
+          placeId: placeId,
+          waveId: selectedWaveId || null,
+          createdAt: new Date().toISOString(),
+          link: '/manage-places'
         });
 
         setToast({ type: 'success', msg: 'Successfully registered! Your registration is pending approval.' });
+        setSelectedProgramId('');
+        setSelectedWaveId('');
+        setPaymentReceipt('');
       } catch (err) {
         setToast({ type: 'error', msg: 'Registration failed: ' + err.message });
       }
@@ -229,8 +315,6 @@ export default function FTPlaceDetails() {
 
     setRegistering(true);
 
-    const chosenWave = place?.waves?.find(w => w.id === selectedWaveId);
-
     try {
       await db.ft_registrations.add({
         studentId: userId,
@@ -244,9 +328,28 @@ export default function FTPlaceDetails() {
         studentUniversityId: meDoc?.universityId || '',
         waveId: selectedWaveId || null,
         waveName: chosenWave ? `${chosenWave.name} (${chosenWave.duration})` : null,
+        paymentRequired: paymentRequired,
+        paymentReceipt: paymentRequired ? paymentReceipt : null
+      });
+
+      // Create admin notification
+      await db.ft_notifications.add({
+        title: 'New Registration Request',
+        message: `${meDoc?.name || 'A student'} requested to register for ${place.name}${chosenWave ? ` (${chosenWave.name})` : ''}`,
+        type: 'registration_request',
+        status: 'unread',
+        targetRoles: ['admin', 'master', 'faculty'],
+        targetUserId: null,
+        studentId: userId,
+        placeId: placeId,
+        waveId: selectedWaveId || null,
+        createdAt: new Date().toISOString(),
+        link: '/manage-places'
       });
 
       setToast({ type: 'success', msg: 'Successfully registered! Your registration is pending approval.' });
+      setSelectedWaveId('');
+      setPaymentReceipt('');
     } catch (err) {
       setToast({ type: 'error', msg: 'Registration failed: ' + err.message });
     }
@@ -254,29 +357,43 @@ export default function FTPlaceDetails() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleUnregister = async () => {
-    if (!myRegistration) return;
-    if (myRegistration.status === 'completed') {
+  const handleUnregister = async (targetReg) => {
+    if (!targetReg) return;
+    if (targetReg.status === 'completed') {
       setToast({ type: 'error', msg: 'Cannot unregister from a completed training.' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
     if (needsApproval) {
       try {
-        await db.ft_registrations.update(myRegistration.id, {
+        await db.ft_registrations.update(targetReg.id, {
           changeRequest: {
             type: 'cancel',
             requestedAt: new Date().toISOString()
           }
         });
         
+        // Create admin notification
+        await db.ft_notifications.add({
+          title: 'Cancellation Request',
+          message: `${meDoc?.name || 'A student'} requested to cancel registration for ${place.name}`,
+          type: 'cancellation_request',
+          status: 'unread',
+          targetRoles: ['admin', 'master', 'faculty'],
+          targetUserId: null,
+          studentId: userId,
+          placeId: placeId,
+          createdAt: new Date().toISOString(),
+          link: '/manage-places'
+        });
+
         setToast({ type: 'success', msg: 'Cancellation request submitted for admin approval.' });
       } catch (err) {
         setToast({ type: 'error', msg: 'Failed to request cancellation: ' + err.message });
       }
     } else {
       try {
-        await db.ft_registrations.delete(myRegistration.id);
+        await db.ft_registrations.delete(targetReg.id);
         setToast({ type: 'success', msg: 'Registration cancelled successfully.' });
       } catch (err) {
         setToast({ type: 'error', msg: 'Failed to cancel registration: ' + err.message });
@@ -285,8 +402,8 @@ export default function FTPlaceDetails() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSubmitChangeRequest = async () => {
-    if (!myRegistration) return;
+  const handleSubmitChangeRequest = async (targetReg) => {
+    if (!targetReg) return;
     
     let requestedProgName = null;
     let requestedWaveName = null;
@@ -335,7 +452,7 @@ export default function FTPlaceDetails() {
 
     try {
       if (requiresApproval) {
-        await db.ft_registrations.update(myRegistration.id, {
+        await db.ft_registrations.update(targetReg.id, {
           changeRequest: {
             type: 'change',
             requestedAt: new Date().toISOString(),
@@ -346,9 +463,23 @@ export default function FTPlaceDetails() {
           }
         });
 
+        // Create admin notification
+        await db.ft_notifications.add({
+          title: 'Change Request',
+          message: `${meDoc?.name || 'A student'} requested to change registration for ${place.name}`,
+          type: 'change_request',
+          status: 'unread',
+          targetRoles: ['admin', 'master', 'faculty'],
+          targetUserId: null,
+          studentId: userId,
+          placeId: placeId,
+          createdAt: new Date().toISOString(),
+          link: '/manage-places'
+        });
+
         setToast({ type: 'success', msg: 'Change request submitted for admin approval.' });
       } else {
-        await db.ft_registrations.update(myRegistration.id, {
+        await db.ft_registrations.update(targetReg.id, {
           programId: changeProgramId || null,
           programName: requestedProgName || null,
           waveId: changeWaveId || null,
@@ -357,7 +488,7 @@ export default function FTPlaceDetails() {
         });
         setToast({ type: 'success', msg: 'Registration updated successfully.' });
       }
-      setShowChangeForm(false);
+      setEditingRegId(null);
     } catch (err) {
       setToast({ type: 'error', msg: 'Action failed: ' + err.message });
     }
@@ -687,249 +818,66 @@ export default function FTPlaceDetails() {
                 )}
               </div>
 
-              {allowSelfRegister ? (
-                <>
-                  {/* 1. If NOT registered: show registration selectors */}
-                  {!myRegistration && (
-                    <>
-                      {/* Program Selection UI */}
-                      {place.hasPrograms && place.programs && place.programs.length > 0 && (
-                        <div style={{ padding: '1rem 0', borderTop: '1px solid var(--ft-border-light)', marginTop: '0.5rem' }}>
-                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.5rem' }}>
-                            Select Program:
-                          </div>
-                          <select 
-                            value={selectedProgramId} 
-                            onChange={e => {
-                              setSelectedProgramId(e.target.value);
-                              setSelectedWaveId('');
-                            }}
-                            className="ft-select ft-w-full"
-                            style={{ padding: '0.5rem', borderRadius: 'var(--ft-radius-sm)', border: '1px solid var(--ft-border)', outline: 'none', marginBottom: '0.5rem' }}
-                          >
-                            <option value="">-- Choose Program --</option>
-                            {place.programs.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-
-                          {/* Selected Program Details & Fees */}
-                          {selectedProgramId && (() => {
-                            const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
-                            if (!chosenProgram) return null;
-                            return (
-                              <div style={{ 
-                                background: 'var(--ft-bg-input)', 
-                                border: '1.5px solid var(--ft-border)', 
-                                padding: '0.85rem', 
-                                borderRadius: 'var(--ft-radius-sm)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.5rem',
-                                marginTop: '0.5rem'
-                              }}>
-                                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--ft-text)' }}>
-                                  {chosenProgram.name}
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                                    ⏱️ {chosenProgram.creditHours} Credit Hours
-                                  </span>
-                                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                                    👥 {chosenProgram.capacity} spots
-                                  </span>
-                                </div>
-                                {chosenProgram.description && (
-                                  <p style={{ color: 'var(--ft-text-secondary)', fontSize: '0.78rem', lineHeight: 1.5, margin: '0.25rem 0 0', whiteSpace: 'pre-wrap' }}>
-                                    {chosenProgram.description}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Waves Selection UI (for place direct waves) */}
-                      {place.waves && place.waves.length > 0 && !place.hasPrograms && (
-                        <div style={{ padding: '1rem 0', borderTop: '1px solid var(--ft-border-light)', borderBottom: '1px solid var(--ft-border-light)', marginTop: '0.5rem' }}>
-                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.75rem' }}>
-                            Select Training Wave / Dates:
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {place.waves.map(w => {
-                              const taken = waveStats[w.id] || 0;
-                              const capacity = w.capacity || 0;
-                              const isWaveFull = taken >= capacity;
-                              const isSelected = selectedWaveId === w.id;
-                              return (
-                                <div
-                                  key={w.id}
-                                  onClick={() => !isWaveFull && setSelectedWaveId(w.id)}
-                                  style={{
-                                    padding: '0.65rem 0.85rem',
-                                    borderRadius: 'var(--ft-radius-sm)',
-                                    border: isSelected ? '1.5px solid var(--ft-primary)' : '1px solid var(--ft-border)',
-                                    background: isSelected ? 'var(--ft-primary-bg)' : (isWaveFull ? 'rgba(0,0,0,0.02)' : 'var(--ft-bg-card)'),
-                                    cursor: isWaveFull ? 'not-allowed' : 'pointer',
-                                    opacity: isWaveFull ? 0.6 : 1,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '0.15rem',
-                                    transition: 'all 0.2s',
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
-                                      {w.name}
-                                    </span>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
-                                      {isWaveFull 
-                                        ? 'Full' 
-                                        : `${capacity - taken} seats left`
-                                      }
-                                    </span>
-                                  </div>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
-                                    📅 {w.duration}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Waves Selection UI (for program waves) */}
-                      {place.hasPrograms && selectedProgramId && (() => {
-                        const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
-                        if (!chosenProgram || !chosenProgram.waves || chosenProgram.waves.length === 0) return null;
-                        return (
-                          <div style={{ padding: '1rem 0', borderTop: '1px solid var(--ft-border-light)', borderBottom: '1px solid var(--ft-border-light)', marginTop: '0.5rem' }}>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.75rem' }}>
-                              Select Training Wave / Dates:
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {chosenProgram.waves.map(w => {
-                                const taken = waveStats[w.id] || 0;
-                                const capacity = w.capacity || 0;
-                                const isWaveFull = taken >= capacity;
-                                const isSelected = selectedWaveId === w.id;
-                                return (
-                                  <div
-                                    key={w.id}
-                                    onClick={() => !isWaveFull && setSelectedWaveId(w.id)}
-                                    style={{
-                                      padding: '0.65rem 0.85rem',
-                                      borderRadius: 'var(--ft-radius-sm)',
-                                      border: isSelected ? '1.5px solid var(--ft-primary)' : '1px solid var(--ft-border)',
-                                      background: isSelected ? 'var(--ft-primary-bg)' : (isWaveFull ? 'rgba(0,0,0,0.02)' : 'var(--ft-bg-card)'),
-                                      cursor: isWaveFull ? 'not-allowed' : 'pointer',
-                                      opacity: isWaveFull ? 0.6 : 1,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.15rem',
-                                      transition: 'all 0.2s',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
-                                        {w.name}
-                                      </span>
-                                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
-                                        {isWaveFull 
-                                          ? 'Full' 
-                                          : `${capacity - taken} seats left`
-                                        }
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
-                                      📅 {w.duration}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-
-                  {/* Status & Action Buttons */}
-                  <div style={{ padding: '1rem 0 0' }}>
-                    {myRegistration ? (
-                      <div>
-                        <div className={`ft-badge ft-badge-${myRegistration.status}`} style={{ width: '100%', justifyContent: 'center', padding: '0.6rem', fontSize: '0.88rem', marginBottom: '0.75rem' }}>
-                          {myRegistration.status === 'pending' && '🟡 Registration Pending'}
-                          {myRegistration.status === 'active' && '🔵 Currently In Training'}
-                          {myRegistration.status === 'completed' && '✅ Training Completed'}
-                          {myRegistration.status === 'failed' && '🔴 Needs Re-training'}
+              {/* Current Student Registrations (if any) */}
+              {myRegistrations && myRegistrations.length > 0 && (
+                <div style={{ padding: '1rem 0 0', borderTop: '1px solid var(--ft-border-light)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--ft-text)', marginBottom: '0.25rem' }}>
+                    📋 Your Registered Program(s) / Wave(s):
+                  </div>
+                  {myRegistrations.map((reg) => {
+                    const isEditing = editingRegId === reg.id;
+                    return (
+                      <div key={reg.id} style={{ border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius)', padding: '1rem', background: 'var(--ft-bg-card)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--ft-text)' }}>
+                            🎓 {reg.programName || place.name}
+                          </span>
+                          <span className={`ft-badge ft-badge-${reg.status}`} style={{ fontSize: '0.74rem', padding: '0.15rem 0.5rem', height: 'auto' }}>
+                            {reg.status === 'pending' && '🟡 Pending'}
+                            {reg.status === 'active' && '🔵 In Training'}
+                            {reg.status === 'completed' && '✅ Completed'}
+                            {reg.status === 'failed' && '🔴 Failed'}
+                          </span>
                         </div>
                         
-                        {myRegistration.programName && (() => {
-                          const registeredProgram = place.programs?.find(p => p.id === myRegistration.programId || p.name === myRegistration.programName);
-                          if (!registeredProgram) {
-                            return (
-                              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ft-text-secondary)', textAlign: 'center', marginBottom: '0.35rem', padding: '0.4rem', background: 'var(--ft-bg-input)', borderRadius: 'var(--ft-radius-sm)' }}>
-                                🎓 Program: {myRegistration.programName}
-                              </div>
-                            );
-                          }
-                          return (
-                            <div style={{ 
-                              background: 'var(--ft-bg-input)', 
-                              border: '1.5px solid var(--ft-border)', 
-                              padding: '0.85rem', 
-                              borderRadius: 'var(--ft-radius-sm)',
-                              marginBottom: '0.75rem',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.5rem'
-                            }}>
-                              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--ft-text)' }}>
-                                🎓 Program: {registeredProgram.name}
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                                  ⏱️ {registeredProgram.creditHours}h
-                                </span>
-                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                                  👥 {registeredProgram.capacity} spots
-                                </span>
-                              </div>
-                              {registeredProgram.description && (
-                                <p style={{ color: 'var(--ft-text-secondary)', fontSize: '0.78rem', lineHeight: 1.5, margin: '0.25rem 0 0', whiteSpace: 'pre-wrap' }}>
-                                  {registeredProgram.description}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        
-                        {myRegistration.waveName && (
-                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ft-text-secondary)', textAlign: 'center', marginBottom: '0.75rem', padding: '0.4rem', background: 'var(--ft-bg-input)', borderRadius: 'var(--ft-radius-sm)' }}>
-                            🌊 Wave: {myRegistration.waveName}
+                        {reg.waveName && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--ft-text-secondary)' }}>
+                            Wave: <strong>{reg.waveName}</strong>
                           </div>
                         )}
+                        
+                        {reg.paymentReceipt ? (
+                          <button 
+                            onClick={() => {
+                              const w = window.open();
+                              w.document.write(`<iframe src="${reg.paymentReceipt}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                            }}
+                            className="ft-btn ft-btn-secondary ft-btn-sm"
+                            style={{ fontSize: '0.75rem', width: 'max-content', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a', borderColor: 'rgba(22, 163, 74, 0.15)', background: '#dcfce7', padding: '0.25rem 0.5rem', height: 'auto' }}
+                          >
+                            📄 View Uploaded Receipt
+                          </button>
+                        ) : reg.paymentRef ? (
+                          <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 700, background: '#dcfce7', padding: '0.25rem 0.5rem', borderRadius: 'var(--ft-radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', width: 'fit-content' }}>
+                            💰 Paid (Ref: {reg.paymentRef})
+                          </div>
+                        ) : null}
 
-                        {myRegistration.changeRequest ? (
-                          <div style={{ padding: '0.75rem', border: '1px dashed var(--ft-warning)', borderRadius: 'var(--ft-radius-sm)', background: 'rgba(217, 119, 6, 0.04)', marginBottom: '0.75rem' }}>
+                        {reg.changeRequest ? (
+                          <div style={{ padding: '0.75rem', border: '1px dashed var(--ft-warning)', borderRadius: 'var(--ft-radius-sm)', background: 'rgba(217, 119, 6, 0.04)', marginTop: '0.25rem' }}>
                             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--ft-warning-text)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              ⏳ Request Pending Approval
+                              ⏳ Request Pending
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-secondary)', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
-                              {myRegistration.changeRequest.type === 'cancel' 
+                              {reg.changeRequest.type === 'cancel' 
                                 ? 'Requested to totally cancel registration.' 
-                                : `Requested change to: ${myRegistration.changeRequest.programName || ''} ${myRegistration.changeRequest.waveName ? `(${myRegistration.changeRequest.waveName})` : ''}`}
+                                : `Requested change to: ${reg.changeRequest.programName || ''} ${reg.changeRequest.waveName ? `(${reg.changeRequest.waveName})` : ''}`}
                             </div>
                             <button 
                               className="ft-btn ft-btn-secondary ft-btn-sm ft-w-full" 
                               onClick={async () => {
                                 try {
-                                  await db.ft_registrations.update(myRegistration.id, { changeRequest: null });
+                                  await db.ft_registrations.update(reg.id, { changeRequest: null });
                                   setToast({ type: 'info', msg: 'Change request withdrawn.' });
                                 } catch(e) {
                                   setToast({ type: 'error', msg: 'Error: ' + e.message });
@@ -942,10 +890,10 @@ export default function FTPlaceDetails() {
                             </button>
                           </div>
                         ) : (
-                          myRegistration.status !== 'completed' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {showChangeForm ? (
-                                <div style={{ border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.75rem', background: 'var(--ft-bg-card)' }}>
+                          reg.status !== 'completed' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                              {isEditing ? (
+                                <div style={{ border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.75rem', background: 'var(--ft-bg-input)' }}>
                                   <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--ft-text-secondary)', marginBottom: '0.5rem' }}>Request Change Details:</div>
                                   
                                   {/* Change Program Select */}
@@ -1018,204 +966,346 @@ export default function FTPlaceDetails() {
                                   })()}
 
                                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                                    <button className="ft-btn ft-btn-primary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={handleSubmitChangeRequest}>
+                                    <button className="ft-btn ft-btn-primary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={() => handleSubmitChangeRequest(reg)}>
                                       {needsApproval ? 'Submit Request' : 'Save Changes'}
                                     </button>
-                                    <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={() => setShowChangeForm(false)}>
+                                    <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={() => setEditingRegId(null)}>
                                       Cancel
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <>
-                                  <button className="ft-btn ft-btn-primary ft-w-full" onClick={() => {
-                                    setChangeProgramId(myRegistration.programId || '');
-                                    setChangeWaveId(myRegistration.waveId || '');
-                                    setShowChangeForm(true);
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button className="ft-btn ft-btn-primary ft-btn-sm" style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => {
+                                    setChangeProgramId(reg.programId || '');
+                                    setChangeWaveId(reg.waveId || '');
+                                    setEditingRegId(reg.id);
                                   }}>
-                                    ✏️ {needsApproval ? 'Request Wave/Program Change' : 'Change Wave/Program'}
+                                    ✏️ Request Change
                                   </button>
-                                  <button className="ft-btn ft-btn-secondary ft-w-full" onClick={handleUnregister} style={{ color: 'var(--ft-danger)' }}>
-                                    {needsApproval ? 'Request Cancellation' : 'Cancel Registration'}
+                                  <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ flex: 1, fontSize: '0.75rem', color: 'var(--ft-danger)', borderColor: 'rgba(239, 68, 68, 0.15)' }} onClick={() => handleUnregister(reg)}>
+                                    ❌ Cancel
                                   </button>
-                                </>
+                                </div>
                               )}
                             </div>
                           )
                         )}
                       </div>
-                    ) : (
-                      <button
-                        className="ft-btn ft-btn-primary ft-btn-lg ft-w-full"
-                        onClick={handleRegister}
-                        disabled={registering || isPastDeadline || isFull || (place.waves && place.waves.length > 0 && !selectedWaveId) || (place.hasPrograms && !selectedProgramId)}
-                        style={(isFull || isPastDeadline) ? { opacity: 0.5 } : {}}
-                      >
-                        {registering ? 'Registering...' : isPastDeadline ? '❌ Registration Closed (Deadline Passed)' : isFull ? 'Place is Full' : (place.hasPrograms && !selectedProgramId) ? 'Select a Program Above' : (place.waves && place.waves.length > 0 && !selectedWaveId) ? 'Select a Wave Above' : '🚀 Register for Training'}
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {myRegistration ? (
-                    <div style={{ padding: '1rem 0 0', borderTop: '1px solid var(--ft-border-light)' }}>
-                      <div className={`ft-badge ft-badge-${myRegistration.status}`} style={{ width: '100%', justifyContent: 'center', padding: '0.6rem', fontSize: '0.88rem', marginBottom: '0.75rem' }}>
-                        {myRegistration.status === 'pending' && '🟡 Registration Pending'}
-                        {myRegistration.status === 'active' && '🔵 Currently In Training'}
-                        {myRegistration.status === 'completed' && '✅ Training Completed'}
-                        {myRegistration.status === 'failed' && '🔴 Needs Re-training'}
+                    );
+                  })}
+                </div>
+              )}
+
+              {allowSelfRegister ? (
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--ft-border-light)', paddingTop: '1rem' }}>
+                  {myRegistrations.length > 0 && (
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ft-primary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      🚀 Register for another program / wave:
+                    </div>
+                  )}
+                  
+                  {/* Program Selection UI */}
+                  {place.hasPrograms && place.programs && place.programs.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.5rem' }}>
+                        Select Program:
                       </div>
-                      
-                      {myRegistration.programName && (
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ft-text-secondary)', textAlign: 'center', marginBottom: '0.35rem', padding: '0.4rem', background: 'var(--ft-bg-input)', borderRadius: 'var(--ft-radius-sm)' }}>
-                          🎓 Program: {myRegistration.programName}
-                        </div>
-                      )}
-                      
-                      {myRegistration.waveName && (
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ft-text-secondary)', textAlign: 'center', marginBottom: '0.75rem', padding: '0.4rem', background: 'var(--ft-bg-input)', borderRadius: 'var(--ft-radius-sm)' }}>
-                          🌊 Wave: {myRegistration.waveName}
-                        </div>
-                      )}
+                      <select 
+                        value={selectedProgramId} 
+                        onChange={e => {
+                          setSelectedProgramId(e.target.value);
+                          setSelectedWaveId('');
+                        }}
+                        className="ft-select ft-w-full"
+                        style={{ padding: '0.5rem', borderRadius: 'var(--ft-radius-sm)', border: '1px solid var(--ft-border)', outline: 'none' }}
+                      >
+                        <option value="">-- Choose Program --</option>
+                        {place.programs.map(p => {
+                          const allWavesReg = p.waves && p.waves.length > 0 && p.waves.every(w => isAlreadyRegisteredFor(p.id, w.id));
+                          const isProgReg = !p.waves || p.waves.length === 0 ? isAlreadyRegisteredFor(p.id, null) : false;
+                          const isRegisteredForProg = allWavesReg || isProgReg;
+                          return (
+                            <option key={p.id} value={p.id} disabled={isRegisteredForProg}>
+                              {p.name} {isRegisteredForProg ? ' (Already Enrolled)' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
 
-                      {myRegistration.changeRequest ? (
-                        <div style={{ padding: '0.75rem', border: '1px dashed var(--ft-warning)', borderRadius: 'var(--ft-radius-sm)', background: 'rgba(217, 119, 6, 0.04)', marginBottom: '0.75rem' }}>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--ft-warning-text)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            ⏳ Request Pending Approval
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-secondary)', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
-                            {myRegistration.changeRequest.type === 'cancel' 
-                              ? 'Requested to totally cancel registration.' 
-                              : `Requested change to: ${myRegistration.changeRequest.programName || ''} ${myRegistration.changeRequest.waveName ? `(${myRegistration.changeRequest.waveName})` : ''}`}
-                          </div>
-                          <button 
-                            className="ft-btn ft-btn-secondary ft-btn-sm ft-w-full" 
-                            onClick={async () => {
-                              try {
-                                await db.ft_registrations.update(myRegistration.id, { changeRequest: null });
-                                setToast({ type: 'info', msg: 'Change request withdrawn.' });
-                              } catch(e) {
-                                setToast({ type: 'error', msg: 'Error: ' + e.message });
-                              }
-                              setTimeout(() => setToast(null), 3000);
-                            }}
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            Withdraw Request
-                          </button>
-                        </div>
-                      ) : (
-                        myRegistration.status !== 'completed' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {showChangeForm ? (
-                              <div style={{ border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.75rem', background: 'var(--ft-bg-card)' }}>
-                                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--ft-text-secondary)', marginBottom: '0.5rem' }}>Request Change Details:</div>
-                                
-                                {/* Change Program Select */}
-                                {place.hasPrograms && place.programs && place.programs.length > 0 && (
-                                  <div style={{ marginBottom: '0.5rem' }}>
-                                    <select 
-                                      value={changeProgramId} 
-                                      onChange={e => {
-                                        setChangeProgramId(e.target.value);
-                                        setChangeWaveId('');
-                                      }}
-                                      className="ft-select ft-w-full"
-                                      style={{ padding: '0.4rem', fontSize: '0.8rem', marginBottom: '0.5rem' }}
-                                    >
-                                      <option value="">-- Choose New Program --</option>
-                                      {place.programs.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                      ))}
-                                    </select>
-
-                                    {/* Program details inside change request */}
-                                    {changeProgramId && (() => {
-                                      const prog = place.programs.find(p => p.id === changeProgramId);
-                                      if (!prog) return null;
-                                      return (
-                                        <div style={{ 
-                                          background: 'var(--ft-bg-card)', 
-                                          border: '1px solid var(--ft-border)', 
-                                          padding: '0.65rem', 
-                                          borderRadius: 'var(--ft-radius-sm)',
-                                          marginBottom: '0.5rem',
-                                          fontSize: '0.75rem',
-                                          color: 'var(--ft-text-secondary)'
-                                        }}>
-                                          <div style={{ fontWeight: 700, color: 'var(--ft-text)', marginBottom: '0.25rem' }}>
-                                            {prog.name}
-                                          </div>
-                                          <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.35rem' }}>
-                                            <span>⏱️ {prog.creditHours}h</span>
-                                            <span>👥 {prog.capacity} spots</span>
-                                          </div>
-                                          {prog.description && <div style={{ fontSize: '0.72rem', whiteSpace: 'pre-wrap' }}>{prog.description}</div>}
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-                                )}
-
-                                {/* Change Wave Select */}
-                                {(() => {
-                                  const progWaves = place.hasPrograms 
-                                    ? place.programs.find(p => p.id === changeProgramId)?.waves 
-                                    : place.waves;
-                                  if (!progWaves || progWaves.length === 0) return null;
-                                  return (
-                                    <div style={{ marginBottom: '0.5rem' }}>
-                                      <select 
-                                        value={changeWaveId} 
-                                        onChange={e => setChangeWaveId(e.target.value)}
-                                        className="ft-select ft-w-full"
-                                        style={{ padding: '0.4rem', fontSize: '0.8rem' }}
-                                      >
-                                        <option value="">-- Choose New Wave --</option>
-                                        {progWaves.map(w => (
-                                          <option key={w.id} value={w.id}>{w.name} ({w.duration})</option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  );
-                                })()}
-
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                                  <button className="ft-btn ft-btn-primary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={handleSubmitChangeRequest}>
-                                    {needsApproval ? 'Submit Request' : 'Save Changes'}
-                                  </button>
-                                  <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ flex: 1, fontSize: '0.78rem' }} onClick={() => setShowChangeForm(false)}>
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <button className="ft-btn ft-btn-primary ft-w-full" onClick={() => {
-                                  setChangeProgramId(myRegistration.programId || '');
-                                  setChangeWaveId(myRegistration.waveId || '');
-                                  setShowChangeForm(true);
-                                }}>
-                                  ✏️ {needsApproval ? 'Request Wave/Program Change' : 'Change Wave/Program'}
-                                </button>
-                                <button className="ft-btn ft-btn-secondary ft-w-full" onClick={handleUnregister} style={{ color: 'var(--ft-danger)' }}>
-                                  {needsApproval ? 'Request Cancellation' : 'Cancel Registration'}
-                                </button>
-                              </>
+                      {/* Selected Program Details */}
+                      {selectedProgramId && (() => {
+                        const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
+                        if (!chosenProgram) return null;
+                        return (
+                          <div style={{ 
+                            background: 'var(--ft-bg-input)', 
+                            border: '1.5px solid var(--ft-border)', 
+                            padding: '0.85rem', 
+                            borderRadius: 'var(--ft-radius-sm)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            marginTop: '0.5rem'
+                          }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--ft-text)' }}>
+                              {chosenProgram.name}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
+                                ⏱️ {chosenProgram.creditHours} Credit Hours
+                              </span>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ft-text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
+                                👥 {chosenProgram.capacity} spots
+                              </span>
+                            </div>
+                            {chosenProgram.description && (
+                              <p style={{ color: 'var(--ft-text-secondary)', fontSize: '0.78rem', lineHeight: 1.5, margin: '0.25rem 0 0', whiteSpace: 'pre-wrap' }}>
+                                {chosenProgram.description}
+                              </p>
                             )}
                           </div>
-                        )
-                      )}
+                        );
+                      })()}
                     </div>
-                  ) : (
-                    <div style={{ padding: '1rem 0 0', borderTop: '1px solid var(--ft-border-light)', fontSize: '0.85rem', color: 'var(--ft-text-secondary)', lineHeight: 1.6 }}>
-                      <div style={{ background: 'var(--ft-bg-input)', border: '1px dashed var(--ft-border)', padding: '1rem', borderRadius: 'var(--ft-radius-md)' }}>
-                        📢 <strong>Registration Notice:</strong> Enrollment is managed solely by university administrators via manual student imports. If you are pre-assigned to this place, your account will be linked automatically.
+                  )}
+
+                  {/* Waves Selection UI (for place direct waves) */}
+                  {place.waves && place.waves.length > 0 && !place.hasPrograms && (
+                    <div style={{ padding: '0.5rem 0', borderTop: '1px solid var(--ft-border-light)', borderBottom: '1px solid var(--ft-border-light)', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.75rem' }}>
+                        Select Training Wave / Dates:
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {place.waves.map(w => {
+                          const taken = waveStats[w.id] || 0;
+                          const capacity = w.capacity || 0;
+                          const isWaveFull = taken >= capacity;
+                          const isWavePastDeadline = w.deadline ? new Date(w.deadline) < new Date() : false;
+                          const isAlreadyEnrolled = isAlreadyRegisteredFor(null, w.id);
+                          const isSelected = selectedWaveId === w.id;
+                          const isSelectable = !isWaveFull && !isWavePastDeadline && !isAlreadyEnrolled;
+                          return (
+                            <div
+                              key={w.id}
+                              onClick={() => isSelectable && setSelectedWaveId(w.id)}
+                              style={{
+                                padding: '0.65rem 0.85rem',
+                                borderRadius: 'var(--ft-radius-sm)',
+                                border: isSelected ? '1.5px solid var(--ft-primary)' : '1px solid var(--ft-border)',
+                                background: isSelected ? 'var(--ft-primary-bg)' : (isSelectable ? 'var(--ft-bg-card)' : 'rgba(0,0,0,0.02)'),
+                                cursor: isSelectable ? 'pointer' : 'not-allowed',
+                                opacity: isSelectable ? 1 : 0.6,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.15rem',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
+                                  {w.name}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                  {isWaveFull 
+                                    ? 'Full' 
+                                    : (isWavePastDeadline ? 'Deadline Passed' : (isAlreadyEnrolled ? 'Already Enrolled' : `${capacity - taken} seats left`))
+                                  }
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
+                                <span>📅 {w.duration}</span>
+                                {w.deadline && (
+                                  <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
+                                    ⏰ Deadline: {new Date(w.deadline).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-                </>
+
+                  {/* Waves Selection UI (for program waves) */}
+                  {place.hasPrograms && selectedProgramId && (() => {
+                    const chosenProgram = place.programs.find(p => p.id === selectedProgramId);
+                    if (!chosenProgram || !chosenProgram.waves || chosenProgram.waves.length === 0) return null;
+                    return (
+                      <div style={{ padding: '0.5rem 0', borderTop: '1px solid var(--ft-border-light)', borderBottom: '1px solid var(--ft-border-light)', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-text-secondary)', marginBottom: '0.75rem' }}>
+                          Select Training Wave / Dates:
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {chosenProgram.waves.map(w => {
+                            const taken = waveStats[w.id] || 0;
+                            const capacity = w.capacity || 0;
+                            const isWaveFull = taken >= capacity;
+                            const isWavePastDeadline = w.deadline ? new Date(w.deadline) < new Date() : false;
+                            const isAlreadyEnrolled = isAlreadyRegisteredFor(selectedProgramId, w.id);
+                            const isSelected = selectedWaveId === w.id;
+                            const isSelectable = !isWaveFull && !isWavePastDeadline && !isAlreadyEnrolled;
+                            return (
+                              <div
+                                key={w.id}
+                                onClick={() => isSelectable && setSelectedWaveId(w.id)}
+                                style={{
+                                  padding: '0.65rem 0.85rem',
+                                  borderRadius: 'var(--ft-radius-sm)',
+                                  border: isSelected ? '1.5px solid var(--ft-primary)' : '1px solid var(--ft-border)',
+                                  background: isSelected ? 'var(--ft-primary-bg)' : (isSelectable ? 'var(--ft-bg-card)' : 'rgba(0,0,0,0.02)'),
+                                  cursor: isSelectable ? 'pointer' : 'not-allowed',
+                                  opacity: isSelectable ? 1 : 0.6,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.15rem',
+                                  transition: 'all 0.2s',
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
+                                    {w.name}
+                                  </span>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                    {isWaveFull 
+                                      ? 'Full' 
+                                      : (isWavePastDeadline ? 'Deadline Passed' : (isAlreadyEnrolled ? 'Already Enrolled' : `${capacity - taken} seats left`))
+                                    }
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
+                                  <span>📅 {w.duration}</span>
+                                  {w.deadline && (
+                                    <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
+                                      ⏰ Deadline: {new Date(w.deadline).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Payment Alert & Reference Input */}
+                  {paymentRequired && (
+                    <div style={{ 
+                      background: 'rgba(13, 148, 136, 0.05)', 
+                      border: '1.5px solid var(--ft-primary)', 
+                      borderRadius: 'var(--ft-radius)',
+                      padding: '1rem',
+                      marginTop: '1rem',
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.65rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--ft-primary)', fontSize: '0.9rem' }}>
+                        💰 Payment Required
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--ft-text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                        This training program or wave requires registration payment. Please click the button below to pay, and then upload your payment receipt to complete your registration.
+                      </p>
+                      {activePaymentLink ? (
+                        <a 
+                          href={activePaymentLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="ft-btn ft-btn-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', textDecoration: 'none', fontSize: '0.82rem', height: '36px', alignSelf: 'flex-start' }}
+                        >
+                          💳 Pay Now (Opens in new tab) ↗
+                        </a>
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--ft-danger)', fontWeight: 600 }}>
+                          ⚠️ Payment link is not configured by the admin yet.
+                        </div>
+                      )}
+                      
+                      <div className="ft-input-group" style={{ margin: 0, marginTop: '0.35rem' }}>
+                        <label className="ft-label" style={{ fontSize: '0.78rem', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                          Upload Payment Receipt (Image or PDF) *
+                        </label>
+                        <input 
+                          key={receiptInputKey}
+                          type="file" 
+                          required
+                          accept="image/*,application/pdf"
+                          onChange={e => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setPaymentReceipt(reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                          className="ft-input"
+                          style={{ background: 'var(--ft-bg-card)', padding: '0.35rem', fontSize: '0.82rem' }}
+                        />
+                        {paymentReceipt && (
+                          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                              ✓ Receipt uploaded successfully
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              {paymentReceipt.startsWith('data:image/') && (
+                                <div style={{ border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', overflow: 'hidden', height: '80px', width: 'fit-content' }}>
+                                  <img src={paymentReceipt} alt="Receipt preview" style={{ height: '100%', objectFit: 'contain' }} />
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                className="ft-btn ft-btn-secondary"
+                                onClick={() => {
+                                  setPaymentReceipt('');
+                                  setReceiptInputKey(prev => prev + 1);
+                                }}
+                                style={{ color: 'var(--ft-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.5rem', height: '30px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                ❌ Remove
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Registration Button */}
+                  <div style={{ marginTop: '1rem' }}>
+                    <button
+                      className="ft-btn ft-btn-primary ft-btn-lg ft-w-full"
+                      onClick={handleRegister}
+                      disabled={registering || isPastDeadline || isFull || (place.waves && place.waves.length > 0 && !selectedWaveId) || (place.hasPrograms && !selectedProgramId) || (paymentRequired && !paymentReceipt)}
+                      style={(isFull || isPastDeadline) ? { opacity: 0.5 } : {}}
+                    >
+                      {registering 
+                        ? 'Registering...' 
+                        : isPastDeadline 
+                          ? '❌ Registration Closed (Deadline Passed)' 
+                          : isFull 
+                            ? 'Place is Full' 
+                            : (place.hasPrograms && !selectedProgramId) 
+                              ? 'Select a Program Above' 
+                              : (place.waves && place.waves.length > 0 && !selectedWaveId) 
+                                ? 'Select a Wave Above' 
+                                : paymentRequired && !paymentReceipt
+                                  ? 'Upload Payment Receipt to Register'
+                                  : '🚀 Register for Training'
+                      }
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: '1rem 0 0', borderTop: '1px solid var(--ft-border-light)', fontSize: '0.85rem', color: 'var(--ft-text-secondary)', lineHeight: 1.6 }}>
+                  <div style={{ background: 'var(--ft-bg-input)', border: '1px dashed var(--ft-border)', padding: '1rem', borderRadius: 'var(--ft-radius-md)' }}>
+                    📢 <strong>Registration Notice:</strong> Enrollment is managed solely by university administrators via manual student imports. If you are pre-assigned to this place, your account will be linked automatically.
+                  </div>
+                </div>
               )}
             </div>
           </div>

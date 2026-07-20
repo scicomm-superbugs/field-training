@@ -148,14 +148,22 @@ export default function Login() {
       );
       const reqSnap = await getDocs(reqQ);
 
-      if (reqSnap.empty) {
         await db.ft_reset_requests.add({
           username: resetForm.username.trim(),
           email: resetForm.email.trim(),
           status: 'pending',
           createdAt: new Date().toISOString()
         });
-      }
+        await db.ft_notifications.add({
+          title: 'Password Reset Request',
+          message: `${resetForm.username.trim()} requested a password reset`,
+          type: 'password_reset',
+          status: 'unread',
+          targetRoles: ['admin', 'master', 'faculty'],
+          targetUserId: null,
+          createdAt: new Date().toISOString(),
+          link: '/manage-places'
+        });
 
       setResetSuccess('Reset request sent to administrator! Once approved, you can reset your password.');
     } catch (err) {

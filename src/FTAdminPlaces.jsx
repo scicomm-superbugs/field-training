@@ -7,6 +7,20 @@ import { FT_DEPARTMENTS, FT_REG_STATUS_ICONS, FT_REG_STATUS_LABELS, cleanWaveNam
 
 const inFlightAdditions = new Set();
 
+const formatDuration = (startStr, endStr) => {
+  if (!startStr || !endStr) return '';
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+  const formatPart = (d) => {
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${weekday} ${day}/${month}`;
+  };
+  return `${formatPart(start)} to ${formatPart(end)}`;
+};
+
 const ensureTestStudentsForPlace = async (place, registrations) => {
   if (!place || !place.id) return;
   const testRegs = registrations?.filter(r => r.placeId === place.id && r.isTest) || [];
@@ -574,7 +588,25 @@ export default function FTAdminPlaces() {
 
   const openAddModal = () => {
     setEditingPlace(null);
-    setForm({ name: '', description: '', thesis: '', requirements: '', creditHours: '', department: '', capacity: '', trainerId: '', trainerIds: [], image: '', waves: [], isVisible: true, hasPrograms: false, programs: [], registrationDeadline: '' });
+    setForm({
+      name: '',
+      description: '',
+      thesis: '',
+      requirements: '',
+      creditHours: '',
+      department: '',
+      capacity: '',
+      trainerId: '',
+      trainerIds: [],
+      image: '',
+      waves: [],
+      isVisible: true,
+      hasPrograms: false,
+      programs: [],
+      registrationDeadline: '',
+      payToRegister: false,
+      paymentLink: ''
+    });
     setShowModal(true);
   };
 
@@ -595,7 +627,9 @@ export default function FTAdminPlaces() {
       isVisible: place.isVisible !== false,
       hasPrograms: place.hasPrograms === true,
       programs: place.programs || [],
-      registrationDeadline: place.registrationDeadline || ''
+      registrationDeadline: place.registrationDeadline || '',
+      payToRegister: place.payToRegister || false,
+      paymentLink: place.paymentLink || ''
     });
     setShowModal(true);
   };
@@ -605,7 +639,17 @@ export default function FTAdminPlaces() {
       ...f,
       waves: [
         ...(f.waves || []),
-        { id: 'w_' + Math.random().toString(36).substr(2, 9), name: `Wave ${(f.waves?.length || 0) + 1}`, duration: '', capacity: '' }
+        {
+          id: 'w_' + Math.random().toString(36).substr(2, 9),
+          name: `Wave ${(f.waves?.length || 0) + 1}`,
+          duration: '',
+          capacity: '',
+          startDate: '',
+          endDate: '',
+          deadline: '',
+          payToRegister: false,
+          paymentLink: ''
+        }
       ]
     }));
   };
@@ -615,7 +659,11 @@ export default function FTAdminPlaces() {
       ...f,
       waves: (f.waves || []).map(w => {
         if (w.id === waveId) {
-          return { ...w, [field]: field === 'capacity' ? (value === '' ? '' : parseInt(value) || 0) : value };
+          const updated = { ...w, [field]: field === 'capacity' ? (value === '' ? '' : parseInt(value) || 0) : value };
+          if (field === 'startDate' || field === 'endDate') {
+            updated.duration = formatDuration(updated.startDate, updated.endDate);
+          }
+          return updated;
         }
         return w;
       })
@@ -640,7 +688,9 @@ export default function FTAdminPlaces() {
           description: '',
           creditHours: f.creditHours || '80',
           capacity: f.capacity || '20',
-          waves: []
+          waves: [],
+          payToRegister: false,
+          paymentLink: ''
         }
       ]
     }));
@@ -651,7 +701,7 @@ export default function FTAdminPlaces() {
       ...f,
       programs: (f.programs || []).map(p => {
         if (p.id === progId) {
-          return { ...p, [field]: field === 'creditHours' || field === 'capacity' ? value : value };
+          return { ...p, [field]: value };
         }
         return p;
       })
@@ -674,7 +724,17 @@ export default function FTAdminPlaces() {
             ...p,
             waves: [
               ...(p.waves || []),
-              { id: 'w_' + Math.random().toString(36).substr(2, 9), name: `Wave ${(p.waves?.length || 0) + 1}`, duration: '', capacity: '' }
+              {
+                id: 'w_' + Math.random().toString(36).substr(2, 9),
+                name: `Wave ${(p.waves?.length || 0) + 1}`,
+                duration: '',
+                capacity: '',
+                startDate: '',
+                endDate: '',
+                deadline: '',
+                payToRegister: false,
+                paymentLink: ''
+              }
             ]
           };
         }
@@ -692,7 +752,11 @@ export default function FTAdminPlaces() {
             ...p,
             waves: (p.waves || []).map(w => {
               if (w.id === waveId) {
-                return { ...w, [field]: field === 'capacity' ? (value === '' ? '' : parseInt(value) || 0) : value };
+                const updated = { ...w, [field]: field === 'capacity' ? (value === '' ? '' : parseInt(value) || 0) : value };
+                if (field === 'startDate' || field === 'endDate') {
+                  updated.duration = formatDuration(updated.startDate, updated.endDate);
+                }
+                return updated;
               }
               return w;
             })
@@ -751,6 +815,8 @@ export default function FTAdminPlaces() {
       hasPrograms: form.hasPrograms === true,
       programs: form.programs || [],
       registrationDeadline: form.registrationDeadline || '',
+      payToRegister: form.payToRegister || false,
+      paymentLink: form.paymentLink || '',
       updatedAt: new Date().toISOString(),
     };
 
@@ -794,7 +860,22 @@ export default function FTAdminPlaces() {
 
   const handleApproveReg = async (regId) => {
     try {
+      const reg = await db.ft_registrations.get(regId);
       await db.ft_registrations.update(regId, { status: 'active', approvedAt: new Date().toISOString() });
+      
+      if (reg) {
+        await db.ft_notifications.add({
+          title: 'Registration Approved 🎉',
+          message: `Your registration for ${reg.placeName} has been approved!`,
+          type: 'registration_approved',
+          status: 'unread',
+          targetRoles: ['student', 'user'],
+          targetUserId: reg.studentId,
+          createdAt: new Date().toISOString(),
+          link: '/my-training'
+        });
+      }
+      
       setToast({ type: 'success', msg: 'Registration approved successfully!' });
     } catch (err) {
       setToast({ type: 'error', msg: 'Failed to approve: ' + err.message });
@@ -804,7 +885,22 @@ export default function FTAdminPlaces() {
 
   const handleRejectReg = async (regId) => {
     try {
+      const reg = await db.ft_registrations.get(regId);
       await db.ft_registrations.delete(regId);
+      
+      if (reg) {
+        await db.ft_notifications.add({
+          title: 'Registration Rejected ❌',
+          message: `Your registration for ${reg.placeName} has been rejected.`,
+          type: 'registration_rejected',
+          status: 'unread',
+          targetRoles: ['student', 'user'],
+          targetUserId: reg.studentId,
+          createdAt: new Date().toISOString(),
+          link: '/'
+        });
+      }
+      
       setToast({ type: 'success', msg: 'Registration rejected.' });
     } catch (err) {
       setToast({ type: 'error', msg: 'Failed to reject: ' + err.message });
@@ -814,10 +910,31 @@ export default function FTAdminPlaces() {
 
   const handleApproveReset = async (reqId) => {
     try {
+      const resetReq = await db.ft_reset_requests.get(reqId);
       await db.ft_reset_requests.update(reqId, {
         status: 'approved',
         approvedAt: new Date().toISOString()
       });
+
+      if (resetReq) {
+        const usersCol = getCollectionName('scientists');
+        const q = query(collection(firestore, usersCol), where('username', '==', resetReq.username));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const userDocId = snap.docs[0].id;
+          await db.ft_notifications.add({
+            title: 'Password Reset Approved 🔑',
+            message: `Your password reset request has been approved! You can now reset it from the login screen.`,
+            type: 'password_reset_approved',
+            status: 'unread',
+            targetRoles: ['student', 'user', 'trainer'],
+            targetUserId: userDocId,
+            createdAt: new Date().toISOString(),
+            link: '/'
+          });
+        }
+      }
+
       setToast({ type: 'success', msg: 'Password reset request approved! The user can now reset their password.' });
     } catch (err) {
       setToast({ type: 'error', msg: 'Failed to approve request: ' + err.message });
@@ -843,6 +960,18 @@ export default function FTAdminPlaces() {
     try {
       if (changeRequest.type === 'cancel') {
         await db.ft_registrations.delete(reg.id);
+        
+        await db.ft_notifications.add({
+          title: 'Cancellation Request Approved 👋',
+          message: `Your cancellation request for ${reg.placeName} has been approved.`,
+          type: 'cancellation_approved',
+          status: 'unread',
+          targetRoles: ['student', 'user'],
+          targetUserId: reg.studentId,
+          createdAt: new Date().toISOString(),
+          link: '/'
+        });
+
         setToast({ type: 'success', msg: `Approved cancellation request for ${reg.studentName}.` });
       } else if (changeRequest.type === 'change') {
         await db.ft_registrations.update(reg.id, {
@@ -852,6 +981,18 @@ export default function FTAdminPlaces() {
           waveName: changeRequest.waveName || null,
           changeRequest: null
         });
+
+        await db.ft_notifications.add({
+          title: 'Change Request Approved 🔄',
+          message: `Your change request for ${reg.placeName} has been approved! (New: ${changeRequest.programName || ''} ${changeRequest.waveName ? `(${changeRequest.waveName})` : ''})`,
+          type: 'change_approved',
+          status: 'unread',
+          targetRoles: ['student', 'user'],
+          targetUserId: reg.studentId,
+          createdAt: new Date().toISOString(),
+          link: '/my-training'
+        });
+
         setToast({ type: 'success', msg: `Approved change request for ${reg.studentName}.` });
       }
     } catch (err) {
@@ -865,6 +1006,18 @@ export default function FTAdminPlaces() {
       await db.ft_registrations.update(reg.id, {
         changeRequest: null
       });
+
+      await db.ft_notifications.add({
+        title: 'Change Request Rejected ❌',
+        message: `Your change/cancellation request for ${reg.placeName} was rejected by the admin.`,
+        type: 'change_rejected',
+        status: 'unread',
+        targetRoles: ['student', 'user'],
+        targetUserId: reg.studentId,
+        createdAt: new Date().toISOString(),
+        link: '/my-training'
+      });
+
       setToast({ type: 'info', msg: `Rejected request for ${reg.studentName}.` });
     } catch (err) {
       setToast({ type: 'error', msg: 'Failed to reject: ' + err.message });
@@ -890,9 +1043,9 @@ export default function FTAdminPlaces() {
     const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed') || [];
     const hasMultiplePrograms = place.hasPrograms && place.programs && place.programs.length > 1;
 
-    let headers = ['Student Name', 'University ID', 'Department', 'Selected Wave', 'Registration Status', 'Registered Date'];
+    let headers = ['Student Name', 'University ID', 'Department', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
     if (hasMultiplePrograms) {
-      headers = ['Student Name', 'University ID', 'Department', 'Program', 'Selected Wave', 'Registration Status', 'Registered Date'];
+      headers = ['Student Name', 'University ID', 'Department', 'Program', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
     }
 
     const rows = placeRegs.map(r => {
@@ -904,8 +1057,18 @@ export default function FTAdminPlaces() {
       if (hasMultiplePrograms) {
         row.push(`"${r.programName || '—'}"`);
       }
+      
+      const matchedWave = place.hasPrograms 
+        ? place.programs?.find(p => p.id === r.programId)?.waves?.find(w => w.id === r.waveId)
+        : place.waves?.find(w => w.id === r.waveId);
+
       row.push(
         `"${r.waveName || 'Global Capacity'}"`,
+        `"${matchedWave?.startDate || '—'}"`,
+        `"${matchedWave?.endDate || '—'}"`,
+        `"${matchedWave?.deadline || '—'}"`,
+        `"${r.paymentRequired ? 'Yes' : 'No'}"`,
+        `"${r.paymentReceipt ? 'Yes (Uploaded)' : (r.paymentRef || 'No')}"`,
         `"${r.status}"`,
         `"${r.registeredAt ? new Date(r.registeredAt).toLocaleString() : '—'}"`
       );
@@ -939,11 +1102,11 @@ export default function FTAdminPlaces() {
 
         {/* Admin Dashboard Hub */}
         <div className="ft-card ft-animate-in" style={{ marginBottom: '2.5rem', padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: '2px solid var(--ft-border-light)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: 'var(--ft-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="ft-admin-hub-header">
+            <h2 className="ft-admin-hub-title">
               📊 Admin Requests & Dashboard Hub
             </h2>
-            <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', paddingBottom: '0.25rem', maxWidth: '100%', alignItems: 'center' }}>
+            <div className="ft-admin-hub-tabs">
               {[
                 { id: 'registrations', label: '⏳ Registrations', count: pendingRegs.length },
                 { id: 'changes', label: '🔄 Changes', count: changeRequests.length },
@@ -955,7 +1118,7 @@ export default function FTAdminPlaces() {
                   type="button"
                   onClick={() => setActiveTab(t.id)}
                   className={`ft-btn ${activeTab === t.id ? 'ft-btn-primary' : 'ft-btn-ghost'}`}
-                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem', height: 'auto', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem', height: 'auto', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
                 >
                   <span>{t.label}</span>
                   {t.count > 0 && (
@@ -1001,35 +1164,120 @@ export default function FTAdminPlaces() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', maxHeight: '350px', overflowY: 'auto' }}>
-                  {pendingRegs.map(reg => (
-                    <div key={reg.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--ft-bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--ft-radius-sm)', border: '1.5px solid var(--ft-border)', flexWrap: 'wrap', gap: '1rem' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{reg.studentName}</span>
-                          {reg.studentUniversityId && (
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(190, 18, 60, 0.12)' }}>
-                              ID: {reg.studentUniversityId}
+                  {pendingRegs.map(reg => {
+                    const place = places?.find(p => p.id === reg.placeId);
+                    let capacity = null;
+                    let taken = 0;
+                    let pendingCount = 0;
+
+                    if (place) {
+                      if (reg.programId) {
+                        const prog = place.programs?.find(p => p.id === reg.programId);
+                        if (prog) {
+                          if (reg.waveId) {
+                            const wave = prog.waves?.find(w => w.id === reg.waveId);
+                            capacity = wave?.capacity;
+                            taken = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.waveId === wave.id && r.status === 'active').length || 0;
+                            pendingCount = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.waveId === wave.id && r.status === 'pending' && r.id !== reg.id).length || 0;
+                          } else {
+                            capacity = prog.capacity;
+                            taken = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.status === 'active').length || 0;
+                            pendingCount = registrations?.filter(r => r.placeId === place.id && r.programId === prog.id && r.status === 'pending' && r.id !== reg.id).length || 0;
+                          }
+                        }
+                      } else if (reg.waveId) {
+                        const wave = place.waves?.find(w => w.id === reg.waveId);
+                        capacity = wave?.capacity;
+                        taken = registrations?.filter(r => r.placeId === place.id && r.waveId === wave.id && r.status === 'active').length || 0;
+                        pendingCount = registrations?.filter(r => r.placeId === place.id && r.waveId === wave.id && r.status === 'pending' && r.id !== reg.id).length || 0;
+                      } else {
+                        capacity = place.capacity;
+                        taken = registrations?.filter(r => r.placeId === place.id && r.status === 'active').length || 0;
+                        pendingCount = registrations?.filter(r => r.placeId === place.id && r.status === 'pending' && r.id !== reg.id).length || 0;
+                      }
+                    }
+
+                    return (
+                      <div key={reg.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--ft-bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--ft-radius-sm)', border: '1.5px solid var(--ft-border)', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{reg.studentName}</span>
+                            {reg.studentUniversityId && (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(190, 18, 60, 0.12)' }}>
+                                ID: {reg.studentUniversityId}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.78rem', color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                              {reg.studentDepartment}
                             </span>
+                            {reg.paymentReceipt ? (
+                              <button 
+                                onClick={() => {
+                                  const w = window.open();
+                                  w.document.write(`<iframe src="${reg.paymentReceipt}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                }}
+                                className="ft-btn ft-btn-secondary ft-btn-sm"
+                                style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: '#16a34a', borderColor: 'rgba(22, 163, 74, 0.15)', background: '#dcfce7', padding: '0.15rem 0.4rem', height: 'auto' }}
+                              >
+                                📄 View Receipt
+                              </button>
+                            ) : reg.paymentRef ? (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(22, 163, 74, 0.15)' }}>
+                                💰 Paid (Ref: {reg.paymentRef})
+                              </span>
+                            ) : null}
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--ft-text-secondary)', marginTop: '0.25rem' }}>
+                            registered for <strong style={{ color: 'var(--ft-text)' }}>{reg.placeName}</strong> 
+                            {reg.waveName && <span style={{ color: 'var(--ft-primary)', fontWeight: 600 }}> · Wave: {reg.waveName}</span>}
+                          </div>
+                          
+                          {/* Seat Capacity Breakdown */}
+                          {capacity !== null && capacity !== undefined ? (
+                            <div style={{ marginTop: '0.35rem', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                              {taken > capacity ? (
+                                <span style={{ color: 'var(--ft-danger)', fontWeight: 700, background: 'rgba(239, 68, 68, 0.08)', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                                  ⚠️ Overloaded ({taken}/{capacity} seats)
+                                </span>
+                              ) : taken === capacity ? (
+                                <span style={{ color: '#d97706', fontWeight: 700, background: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(217, 119, 6, 0.15)' }}>
+                                  ⚠️ Full ({taken}/{capacity} seats)
+                                </span>
+                              ) : (
+                                <span style={{ color: '#16a34a', fontWeight: 700, background: '#dcfce7', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(22, 163, 74, 0.15)' }}>
+                                  ✅ {capacity - taken} seats available ({taken}/{capacity} taken)
+                                </span>
+                              )}
+                              {pendingCount > 0 && (
+                                <span style={{ color: 'var(--ft-text-muted)', fontSize: '0.72rem', background: 'rgba(0,0,0,0.04)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                  ({pendingCount} other pending request{pendingCount > 1 ? 's' : ''})
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: '0.35rem', fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                              <span style={{ color: 'var(--ft-text-secondary)', fontWeight: 600, background: 'rgba(0,0,0,0.04)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                ℹ️ Unlimited Capacity ({taken} active registrations)
+                              </span>
+                              {pendingCount > 0 && (
+                                <span style={{ color: 'var(--ft-text-muted)', fontSize: '0.72rem', background: 'rgba(0,0,0,0.04)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                  ({pendingCount} other pending request{pendingCount > 1 ? 's' : ''})
+                                </span>
+                              )}
+                            </div>
                           )}
-                          <span style={{ fontSize: '0.78rem', color: 'var(--ft-primary)', background: 'var(--ft-primary-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            {reg.studentDepartment}
-                          </span>
                         </div>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--ft-text-secondary)', marginTop: '0.25rem' }}>
-                          registered for <strong style={{ color: 'var(--ft-text)' }}>{reg.placeName}</strong> 
-                          {reg.waveName && <span style={{ color: 'var(--ft-primary)', fontWeight: 600 }}> · Wave: {reg.waveName}</span>}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="ft-btn ft-btn-primary ft-btn-sm" onClick={() => handleApproveReg(reg.id)}>
+                            Approve
+                          </button>
+                          <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ color: 'var(--ft-danger)' }} onClick={() => handleRejectReg(reg.id)}>
+                            Reject
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="ft-btn ft-btn-primary ft-btn-sm" onClick={() => handleApproveReg(reg.id)}>
-                          Approve
-                        </button>
-                        <button className="ft-btn ft-btn-secondary ft-btn-sm" style={{ color: 'var(--ft-danger)' }} onClick={() => handleRejectReg(reg.id)}>
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1185,7 +1433,7 @@ export default function FTAdminPlaces() {
           </div>
         ) : (
           <div className="ft-table-wrapper">
-            <table className="ft-table">
+            <table className="ft-table" style={{ minWidth: '950px' }}>
               <thead>
                 <tr>
                   <th>Place</th>
@@ -1420,7 +1668,7 @@ export default function FTAdminPlaces() {
                       <td style={{ fontSize: '0.82rem' }}>
                         {assignedTrainers.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                            {assignedTrainers.map(t => <div key={t.id}>{t.name}</div>)}
+                            {assignedTrainers.map(t => <div key={t.id} style={{ whiteSpace: 'nowrap' }}>{t.name}</div>)}
                           </div>
                         ) : '—'}
                       </td>
@@ -1635,6 +1883,35 @@ export default function FTAdminPlaces() {
                   </small>
                 </div>
 
+                {/* Root Place Payment Settings */}
+                <div style={{ background: 'var(--ft-bg-card)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.85rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="ft-input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                    <input 
+                      type="checkbox" 
+                      id="payToRegister-checkbox" 
+                      checked={form.payToRegister} 
+                      onChange={e => setForm(f => ({ ...f, payToRegister: e.target.checked }))} 
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="payToRegister-checkbox" className="ft-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 600, color: 'var(--ft-primary)' }}>
+                      💰 Require Payment for Registration (Place default)
+                    </label>
+                  </div>
+                  {form.payToRegister && (
+                    <div className="ft-input-group" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+                      <label className="ft-label" style={{ fontSize: '0.78rem' }}>Custom Payment Link *</label>
+                      <input 
+                        type="url" 
+                        required 
+                        className="ft-input" 
+                        placeholder="https://payment-gateway.com/pay/..." 
+                        value={form.paymentLink} 
+                        onChange={e => setForm(f => ({ ...f, paymentLink: e.target.value }))} 
+                      />
+                    </div>
+                  )}
+                </div>
+
                  <div className="ft-input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', marginBottom: '1.25rem' }}>
                    <input 
                      type="checkbox" 
@@ -1727,6 +2004,36 @@ export default function FTAdminPlaces() {
                                />
                              </div>
 
+                             {/* Program Payment Settings */}
+                             <div style={{ background: 'var(--ft-bg-card)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                               <div className="ft-input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                 <input 
+                                   type="checkbox" 
+                                   id={`payToRegister-prog-${prog.id}`} 
+                                   checked={prog.payToRegister || false} 
+                                   onChange={e => handleUpdateProgram(prog.id, 'payToRegister', e.target.checked)} 
+                                   style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                 />
+                                 <label htmlFor={`payToRegister-prog-${prog.id}`} className="ft-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem' }}>
+                                   💰 Require Payment for this Program
+                                 </label>
+                               </div>
+                               {prog.payToRegister && (
+                                 <div className="ft-input-group" style={{ marginTop: '0.25rem', marginBottom: 0 }}>
+                                   <label className="ft-label" style={{ fontSize: '0.74rem' }}>Program Payment Link *</label>
+                                   <input 
+                                     type="url" 
+                                     required 
+                                     className="ft-input" 
+                                     style={{ background: 'var(--ft-bg-card)', padding: '0.4rem', fontSize: '0.8rem' }}
+                                     placeholder="https://payment-gateway.com/pay-program/..." 
+                                     value={prog.paymentLink || ''} 
+                                     onChange={e => handleUpdateProgram(prog.id, 'paymentLink', e.target.value)} 
+                                   />
+                                 </div>
+                               )}
+                             </div>
+
                              {/* Waves for this program */}
                              <div style={{ borderTop: '1px dashed var(--ft-border)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -1737,43 +2044,114 @@ export default function FTAdminPlaces() {
                                </div>
 
                                {prog.waves && prog.waves.length > 0 ? (
-                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                                    {prog.waves.map((wave) => (
-                                     <div key={wave.id} style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                                       <input
-                                         className="ft-input"
-                                         style={{ flex: '1.2', padding: '0.4rem', fontSize: '0.82rem', background: 'var(--ft-bg-card)' }}
-                                         required
-                                         placeholder="Wave Name"
-                                         value={wave.name}
-                                         onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'name', e.target.value)}
-                                       />
-                                       <input
-                                         className="ft-input"
-                                         style={{ flex: '2', padding: '0.4rem', fontSize: '0.82rem', background: 'var(--ft-bg-card)' }}
-                                         required
-                                         placeholder="Duration"
-                                         value={wave.duration}
-                                         onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'duration', e.target.value)}
-                                       />
-                                       <input
-                                         className="ft-input"
-                                         style={{ flex: '0.8', padding: '0.4rem', fontSize: '0.82rem', background: 'var(--ft-bg-card)' }}
-                                         type="number"
-                                         min="1"
-                                         required
-                                         placeholder="Cap"
-                                         value={wave.capacity}
-                                         onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'capacity', e.target.value)}
-                                       />
-                                       <button
-                                         type="button"
-                                         className="ft-btn ft-btn-ghost ft-btn-icon ft-btn-sm"
-                                         style={{ color: 'var(--ft-danger)', flexShrink: 0, width: '28px', height: '28px' }}
-                                         onClick={() => handleRemoveProgramWave(prog.id, wave.id)}
-                                       >
-                                         <Trash2 size={13} />
-                                       </button>
+                                     <div key={wave.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--ft-bg-card)', border: '1px solid var(--ft-border-light)', borderRadius: '4px', padding: '0.75rem', marginBottom: '0.25rem' }}>
+                                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                         <input
+                                           className="ft-input"
+                                           style={{ flex: '1.5', padding: '0.4rem', fontSize: '0.82rem', background: 'var(--ft-bg-input)' }}
+                                           required
+                                           placeholder="Wave Name (e.g. Wave 1)"
+                                           value={wave.name}
+                                           onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'name', e.target.value)}
+                                         />
+                                         <input
+                                           className="ft-input"
+                                           style={{ flex: '1', padding: '0.4rem', fontSize: '0.82rem', background: 'var(--ft-bg-input)' }}
+                                           type="number"
+                                           min="1"
+                                           required
+                                           placeholder="Capacity"
+                                           value={wave.capacity}
+                                           onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'capacity', e.target.value)}
+                                         />
+                                         <button
+                                           type="button"
+                                           className="ft-btn ft-btn-ghost ft-btn-icon ft-btn-sm"
+                                           style={{ color: 'var(--ft-danger)', flexShrink: 0, width: '28px', height: '28px' }}
+                                           onClick={() => handleRemoveProgramWave(prog.id, wave.id)}
+                                         >
+                                           <Trash2 size={13} />
+                                         </button>
+                                       </div>
+                                       
+                                       {/* Specific Date Selectors for Wave Duration */}
+                                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>Start Date</span>
+                                           <input 
+                                             type="date" 
+                                             className="ft-input" 
+                                             style={{ padding: '0.3rem', fontSize: '0.78rem', background: 'var(--ft-bg-input)' }}
+                                             value={wave.startDate || ''}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'startDate', e.target.value)}
+                                           />
+                                         </div>
+                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>End Date</span>
+                                           <input 
+                                             type="date" 
+                                             className="ft-input" 
+                                             style={{ padding: '0.3rem', fontSize: '0.78rem', background: 'var(--ft-bg-input)' }}
+                                             value={wave.endDate || ''}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'endDate', e.target.value)}
+                                           />
+                                         </div>
+                                       </div>
+                                       
+                                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                         {/* Duration display/override */}
+                                         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>Duration String</span>
+                                           <input 
+                                             type="text" 
+                                             className="ft-input" 
+                                             style={{ padding: '0.3rem', fontSize: '0.78rem', background: 'var(--ft-bg-input)' }}
+                                             placeholder="Auto-calculated or custom"
+                                             value={wave.duration || ''}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'duration', e.target.value)}
+                                           />
+                                         </div>
+                                         {/* Wave-specific Deadline */}
+                                         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                           <span style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>📅 Wave Deadline</span>
+                                           <input 
+                                             type="datetime-local" 
+                                             className="ft-input" 
+                                             style={{ padding: '0.3rem', fontSize: '0.78rem', background: 'var(--ft-bg-input)' }}
+                                             value={wave.deadline || ''}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'deadline', e.target.value)}
+                                           />
+                                         </div>
+                                       </div>
+
+                                       {/* Wave Payment settings */}
+                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', borderTop: '1px solid var(--ft-border-light)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                           <input 
+                                             type="checkbox" 
+                                             id={`payToRegister-progwave-${wave.id}`}
+                                             checked={wave.payToRegister || false}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'payToRegister', e.target.checked)}
+                                             style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                                           />
+                                           <label htmlFor={`payToRegister-progwave-${wave.id}`} style={{ fontSize: '0.74rem', fontWeight: 600, margin: 0, cursor: 'pointer' }}>
+                                             💰 Require Payment for this Wave
+                                           </label>
+                                         </div>
+                                         {wave.payToRegister && (
+                                           <input 
+                                             type="url"
+                                             required
+                                             className="ft-input"
+                                             placeholder="Wave Custom Payment Link"
+                                             style={{ padding: '0.3rem', fontSize: '0.78rem', background: 'var(--ft-bg-input)' }}
+                                             value={wave.paymentLink || ''}
+                                             onChange={e => handleUpdateProgramWave(prog.id, wave.id, 'paymentLink', e.target.value)}
+                                           />
+                                         )}
+                                       </div>
                                      </div>
                                    ))}
                                  </div>
@@ -1803,44 +2181,115 @@ export default function FTAdminPlaces() {
                        </button>
                      </div>
                      {form.waves && form.waves.length > 0 ? (
-                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                          {form.waves.map((wave) => (
-                           <div key={wave.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                             <input
-                               className="ft-input"
-                               style={{ flex: '1.5', padding: '0.5rem' }}
-                               required
-                               placeholder="Wave Name"
-                               value={wave.name}
-                               onChange={e => handleUpdateWave(wave.id, 'name', e.target.value)}
-                             />
-                             <input
-                               className="ft-input"
-                               style={{ flex: '2.5', padding: '0.5rem' }}
-                               required
-                               placeholder="e.g. Sat 18/07 to Wed 29/07"
-                               value={wave.duration}
-                               onChange={e => handleUpdateWave(wave.id, 'duration', e.target.value)}
-                             />
-                             <input
-                               className="ft-input"
-                               style={{ flex: '1', padding: '0.5rem' }}
-                               type="number"
-                               min="1"
-                               required
-                               placeholder="Capacity"
-                               value={wave.capacity}
-                               onChange={e => handleUpdateWave(wave.id, 'capacity', e.target.value)}
-                             />
-                             <button
-                               type="button"
-                               className="ft-btn ft-btn-ghost ft-btn-icon ft-btn-sm"
-                               style={{ color: 'var(--ft-danger)', flexShrink: 0, width: '32px', height: '32px' }}
-                               onClick={() => handleRemoveWave(wave.id)}
-                               title="Remove Wave"
-                             >
-                               <Trash2 size={15} />
-                             </button>
+                           <div key={wave.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--ft-bg-input)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '1rem' }}>
+                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                               <input
+                                 className="ft-input"
+                                 style={{ flex: '2', padding: '0.45rem', background: 'var(--ft-bg-card)' }}
+                                 required
+                                 placeholder="Wave Name"
+                                 value={wave.name}
+                                 onChange={e => handleUpdateWave(wave.id, 'name', e.target.value)}
+                               />
+                               <input
+                                 className="ft-input"
+                                 style={{ flex: '1.2', padding: '0.45rem', background: 'var(--ft-bg-card)' }}
+                                 type="number"
+                                 min="1"
+                                 required
+                                 placeholder="Capacity"
+                                 value={wave.capacity}
+                                 onChange={e => handleUpdateWave(wave.id, 'capacity', e.target.value)}
+                               />
+                               <button
+                                 type="button"
+                                 className="ft-btn ft-btn-ghost ft-btn-icon ft-btn-sm"
+                                 style={{ color: 'var(--ft-danger)', flexShrink: 0, width: '34px', height: '34px' }}
+                                 onClick={() => handleRemoveWave(wave.id)}
+                                 title="Remove Wave"
+                               >
+                                 <Trash2 size={16} />
+                               </button>
+                             </div>
+
+                             {/* Start/End Dates for Wave Duration */}
+                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>Start Date</span>
+                                 <input 
+                                   type="date" 
+                                   className="ft-input" 
+                                   style={{ padding: '0.4rem', fontSize: '0.8rem', background: 'var(--ft-bg-card)' }}
+                                   value={wave.startDate || ''}
+                                   onChange={e => handleUpdateWave(wave.id, 'startDate', e.target.value)}
+                                 />
+                               </div>
+                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>End Date</span>
+                                 <input 
+                                   type="date" 
+                                   className="ft-input" 
+                                   style={{ padding: '0.4rem', fontSize: '0.8rem', background: 'var(--ft-bg-card)' }}
+                                   value={wave.endDate || ''}
+                                   onChange={e => handleUpdateWave(wave.id, 'endDate', e.target.value)}
+                                 />
+                               </div>
+                             </div>
+
+                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                               {/* Duration string display/override */}
+                               <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>Duration String</span>
+                                 <input
+                                   className="ft-input"
+                                   style={{ padding: '0.4rem', fontSize: '0.8rem', background: 'var(--ft-bg-card)' }}
+                                   placeholder="Auto-calculated or custom"
+                                   value={wave.duration}
+                                   onChange={e => handleUpdateWave(wave.id, 'duration', e.target.value)}
+                                 />
+                               </div>
+
+                               {/* Wave Deadline */}
+                               <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--ft-text-muted)' }}>📅 Wave Deadline</span>
+                                 <input 
+                                   type="datetime-local" 
+                                   className="ft-input" 
+                                   style={{ padding: '0.4rem', fontSize: '0.8rem', background: 'var(--ft-bg-card)' }}
+                                   value={wave.deadline || ''}
+                                   onChange={e => handleUpdateWave(wave.id, 'deadline', e.target.value)}
+                                 />
+                               </div>
+                             </div>
+
+                             {/* Standard Wave Payment settings */}
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px solid var(--ft-border-light)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                 <input 
+                                   type="checkbox" 
+                                   id={`payToRegister-wave-${wave.id}`}
+                                   checked={wave.payToRegister || false}
+                                   onChange={e => handleUpdateWave(wave.id, 'payToRegister', e.target.checked)}
+                                   style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                 />
+                                 <label htmlFor={`payToRegister-wave-${wave.id}`} style={{ fontSize: '0.78rem', fontWeight: 600, margin: 0, cursor: 'pointer' }}>
+                                   💰 Require Payment for this Wave
+                                 </label>
+                               </div>
+                               {wave.payToRegister && (
+                                 <input 
+                                   type="url"
+                                   required
+                                   className="ft-input"
+                                   placeholder="Wave Custom Payment Link"
+                                   style={{ padding: '0.4rem', fontSize: '0.8rem', background: 'var(--ft-bg-card)' }}
+                                   value={wave.paymentLink || ''}
+                                   onChange={e => handleUpdateWave(wave.id, 'paymentLink', e.target.value)}
+                                 />
+                               )}
+                             </div>
                            </div>
                          ))}
                        </div>

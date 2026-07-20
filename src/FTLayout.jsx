@@ -4,7 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { db, firestore, getCollectionName, useLiveCollection, getFirebaseAuth } from './db';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { MapPin, BookOpen, Users, Settings, ClipboardCheck, LayoutDashboard, LogOut, Moon, Sun, Menu, X, ChevronDown, GraduationCap } from 'lucide-react';
+import { MapPin, BookOpen, Users, Settings, ClipboardCheck, LayoutDashboard, LogOut, Moon, Sun, Menu, X, ChevronDown, GraduationCap, Bell } from 'lucide-react';
 import { FT_FACULTY, FT_ROLE_LABELS, FT_ROLE_COLORS, isFacultyRole, isTrainerRole, isStudentRole, FT_DEFAULT_REQUIRED_HOURS } from './ftConstants';
 import bcrypt from 'bcryptjs';
 import './fieldtraining.css';
@@ -18,6 +18,7 @@ export default function FTLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [meDoc, setMeDoc] = useState(null);
+  const userRole = user?.role || 'student';
 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -39,6 +40,10 @@ export default function FTLayout() {
   const settings = useLiveCollection('ft_settings');
   const places = useLiveCollection('ft_places');
   const resetRequests = useLiveCollection('ft_reset_requests');
+  const notifications = useLiveCollection('ft_notifications');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
+  const [releaseNotesTab, setReleaseNotesTab] = useState('student');
 
   // Load full user doc
   useEffect(() => {
@@ -111,27 +116,117 @@ export default function FTLayout() {
     })();
   }, [user?.id, meDoc]);
 
+  // Seed system release notes notifications once on load
+  useEffect(() => {
+    (async () => {
+      try {
+        const notifCol = getCollectionName('ft_notifications');
+        const q = query(
+          collection(firestore, notifCol),
+          where('type', '==', 'system_release_notes')
+        );
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          // Create student update notification
+          await db.ft_notifications.add({
+            title: 'System Update: Version 2.0 is Live! 🚀',
+            message: 'We have updated the portal with multiple registrations, payment receipt uploads, and real-time notifications. Click to see what is new!',
+            type: 'system_release_notes',
+            status: 'unread',
+            targetRoles: ['student', 'user'],
+            targetUserId: null,
+            createdAt: new Date().toISOString(),
+            link: '#open-release-notes'
+          });
+
+          // Create trainer update notification
+          await db.ft_notifications.add({
+            title: 'System Update: Version 2.0 is Live! 🚀',
+            message: 'New mobile-friendly trainee cards, quick actions, and evaluation notification alerts are now live. Click to view!',
+            type: 'system_release_notes',
+            status: 'unread',
+            targetRoles: ['trainer'],
+            targetUserId: null,
+            createdAt: new Date().toISOString(),
+            link: '#open-release-notes'
+          });
+
+          // Create admin update notification
+          await db.ft_notifications.add({
+            title: 'System Update: Version 2.0 is Live! 🚀',
+            message: 'Customize wave deadlines, view real-time seat capacity conflicts, and export full receipt CSVs. Click to view release notes!',
+            type: 'system_release_notes',
+            status: 'unread',
+            targetRoles: ['admin', 'master', 'faculty'],
+            targetUserId: null,
+            createdAt: new Date().toISOString(),
+            link: '#open-release-notes'
+          });
+          console.log("Seeded system release notes notifications successfully!");
+        }
+      } catch (err) {
+        console.error("Failed to seed system release notes notifications:", err);
+      }
+    })();
+  }, []);
+
+  // Auto-switch release notes tab based on role when modal opens
+  useEffect(() => {
+    if (showReleaseNotesModal) {
+      if (userRole === 'admin' || userRole === 'master' || userRole === 'faculty') {
+        setReleaseNotesTab('admin');
+      } else if (userRole === 'trainer') {
+        setReleaseNotesTab('trainer');
+      } else {
+        setReleaseNotesTab('student');
+      }
+    }
+  }, [showReleaseNotesModal, userRole]);
+
   // Auto-approve pending registrations past their deadline
   useEffect(() => {
     if (places && registrations) {
       const now = new Date();
       places.forEach(async (place) => {
-        if (place.registrationDeadline) {
-          const deadline = new Date(place.registrationDeadline);
-          if (deadline < now) {
-            // Find pending registrations for this place
-            const pendingRegsForPlace = registrations.filter(r => r.placeId === place.id && r.status === 'pending');
-            for (const reg of pendingRegsForPlace) {
-              try {
-                await db.ft_registrations.update(reg.id, {
-                  status: 'active',
-                  approvedAt: now.toISOString(),
-                  autoApproved: true
-                });
-                console.log(`Auto-approved registration ${reg.id} for student ${reg.studentName} (deadline passed)`);
-              } catch (e) {
-                console.error("Failed to auto-approve registration on deadline:", e);
-              }
+        // Find pending registrations for this place
+        const pendingRegsForPlace = registrations.filter(r => r.placeId === place.id && r.status === 'pending');
+        for (const reg of pendingRegsForPlace) {
+          let isPassed = false;
+          if (place.registrationDeadline) {
+            const deadline = new Date(place.registrationDeadline);
+            if (deadline < now) isPassed = true;
+          }
+          if (!isPassed && reg.waveId) {
+            const matchedWave = place.hasPrograms
+              ? place.programs?.find(p => p.id === reg.programId)?.waves?.find(w => w.id === reg.waveId)
+              : place.waves?.find(w => w.id === reg.waveId);
+            if (matchedWave?.deadline) {
+              const waveDeadline = new Date(matchedWave.deadline);
+              if (waveDeadline < now) isPassed = true;
+            }
+          }
+
+          if (isPassed) {
+            try {
+              await db.ft_registrations.update(reg.id, {
+                status: 'active',
+                approvedAt: now.toISOString(),
+                autoApproved: true
+              });
+              await db.ft_notifications.add({
+                title: 'Registration Auto-Approved ⏱️',
+                message: `Your registration for ${reg.placeName} was auto-approved as the deadline has passed.`,
+                type: 'registration_approved',
+                status: 'unread',
+                targetRoles: ['student', 'user'],
+                targetUserId: reg.studentId,
+                createdAt: new Date().toISOString(),
+                link: '/my-training'
+              });
+              console.log(`Auto-approved registration ${reg.id} for student ${reg.studentName} (deadline passed)`);
+            } catch (e) {
+              console.error("Failed to auto-approve registration on deadline:", e);
             }
           }
         }
@@ -287,16 +382,61 @@ export default function FTLayout() {
     return { registered, completed, required: requiredHours };
   }, [registrations, settings, places, user]);
 
-  const userRole = user?.role || 'student';
   const progressPct = creditData.required > 0 ? Math.min(100, Math.round((creditData.completed / creditData.required) * 100)) : 0;
 
-  const notificationsCount = useMemo(() => {
-    if (userRole !== 'admin' && userRole !== 'master' && userRole !== 'faculty') return 0;
-    const pendingRegsCount = registrations?.filter(r => r.status === 'pending')?.length || 0;
-    const changeRequestsCount = registrations?.filter(r => r.changeRequest)?.length || 0;
-    const pendingResetsCount = resetRequests?.filter(r => r.status === 'pending')?.length || 0;
-    return pendingRegsCount + changeRequestsCount + pendingResetsCount;
-  }, [registrations, resetRequests, userRole]);
+  const myNotifications = useMemo(() => {
+    if (!notifications || !user) return [];
+    return notifications
+      .filter(n => {
+        if (userRole === 'admin' || userRole === 'master' || userRole === 'faculty') {
+          return n.targetRoles?.includes('admin') || n.targetRoles?.includes('master') || n.targetRoles?.includes('faculty') || n.targetUserId === user.id;
+        } else {
+          return n.targetUserId === user.id;
+        }
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [notifications, user, userRole]);
+
+  const unreadCount = useMemo(() => {
+    return myNotifications.filter(n => n.status === 'unread').length;
+  }, [myNotifications]);
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  const handleMarkAllRead = async () => {
+    const unreads = myNotifications.filter(n => n.status === 'unread');
+    for (const notif of unreads) {
+      try {
+        await db.ft_notifications.update(notif.id, { status: 'read' });
+      } catch (e) {
+        console.error('Failed to mark read:', e);
+      }
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    setShowNotifications(false);
+    try {
+      await db.ft_notifications.update(notif.id, { status: 'read' });
+    } catch (e) {
+      console.error('Failed to mark read:', e);
+    }
+    if (notif.link === '#open-release-notes') {
+      setShowReleaseNotesModal(true);
+    } else if (notif.link) {
+      navigate(notif.link);
+    }
+  };
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '';
@@ -346,26 +486,7 @@ export default function FTLayout() {
           {item.icon}
           <span>{item.label}</span>
         </div>
-        {item.path === '/manage-places' && notificationsCount > 0 && (
-          <span style={{
-            background: 'var(--ft-danger)',
-            color: 'white',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            borderRadius: '999px',
-            padding: '0.15rem 0.45rem',
-            lineHeight: 1,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '18px',
-            height: '18px',
-            boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
-            marginRight: '0.5rem'
-          }}>
-            {notificationsCount}
-          </span>
-        )}
+
       </Link>
     );
   };
@@ -389,7 +510,7 @@ export default function FTLayout() {
 
         {/* Credit Hours Bar (desktop) */}
         {(isStudentRole(userRole) || userRole === 'user') && (
-          <div className="ft-credit-bar" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="ft-credit-bar">
             <div className="ft-credit-item" style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
               <span>🏆</span>
               <span style={{ color: 'var(--ft-text-secondary)', fontWeight: 600 }}>Finished:</span>
@@ -412,6 +533,64 @@ export default function FTLayout() {
         )}
 
         <div className="ft-navbar-actions">
+          {/* Notification Bell */}
+          <div style={{ position: 'relative' }}>
+            <button 
+              className="ft-theme-toggle" 
+              onClick={() => setShowNotifications(!showNotifications)} 
+              title="Notifications"
+              style={{ position: 'relative' }}
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="ft-bell-badge">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1050 }} onClick={() => setShowNotifications(false)} />
+                <div className="ft-notifications-dropdown">
+                  <div className="ft-notifications-header">
+                    <h3>Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={handleMarkAllRead}
+                        style={{ background: 'none', border: 'none', color: 'var(--ft-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="ft-notifications-list">
+                    {myNotifications.length === 0 ? (
+                      <div className="ft-notifications-empty">No notifications yet.</div>
+                    ) : (
+                      myNotifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          className={`ft-notifications-item ${notif.status}`}
+                          onClick={() => handleNotificationClick(notif)}
+                        >
+                          <div className="ft-notifications-item-icon">
+                            {notif.type.includes('approved') ? '🎉' : notif.type.includes('rejected') ? '❌' : '🔔'}
+                          </div>
+                          <div className="ft-notifications-item-content">
+                            <div className="ft-notifications-item-title">{notif.title}</div>
+                            <div className="ft-notifications-item-message">{notif.message}</div>
+                            <div className="ft-notifications-item-time">{formatTimeAgo(notif.createdAt)}</div>
+                          </div>
+                          {notif.status === 'unread' && <div className="ft-notifications-unread-dot" />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <button className="ft-theme-toggle" onClick={() => setDark(!dark)} title={dark ? 'Light Mode' : 'Dark Mode'}>
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -549,6 +728,38 @@ export default function FTLayout() {
             </div>
           </div>
         )}
+
+        {/* Sidebar bottom action — What's New button for all users */}
+        <div style={{ 
+          marginTop: (isStudentRole(userRole) || userRole === 'user') ? '0.75rem' : 'auto', 
+          padding: '0.75rem 0.5rem 0', 
+          borderTop: (isStudentRole(userRole) || userRole === 'user') ? 'none' : '1px solid var(--ft-border-light)',
+          marginBottom: '0.5rem'
+        }}>
+          <button
+            onClick={() => {
+              setShowReleaseNotesModal(true);
+              setSidebarOpen(false);
+            }}
+            className="ft-btn ft-btn-secondary ft-btn-sm"
+            style={{ 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '0.5rem', 
+              fontSize: '0.8rem', 
+              fontWeight: 700, 
+              padding: '0.5rem 1rem', 
+              background: 'var(--ft-primary-bg)', 
+              color: 'var(--ft-primary)', 
+              border: '1px solid rgba(190, 18, 60, 0.15)',
+              borderRadius: 'var(--ft-radius)'
+            }}
+          >
+            <span>✨</span> What's New
+          </button>
+        </div>
       </aside>
 
       {/* ── Main Content ───────────────────────────────────── */}
@@ -742,6 +953,113 @@ export default function FTLayout() {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    )}
+
+    {/* Release Notes Modal */}
+    {showReleaseNotesModal && (
+      <div className="ft-modal-overlay" onClick={() => setShowReleaseNotesModal(false)}>
+        <div className="ft-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+          <div className="ft-modal-header">
+            <h3 className="ft-modal-title">✨ What's New in Version 2.0</h3>
+            <button className="ft-modal-close" onClick={() => setShowReleaseNotesModal(false)}><X size={18} /></button>
+          </div>
+          <div className="ft-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1.25rem' }}>
+            <p style={{ fontSize: '0.88rem', color: 'var(--ft-text-secondary)', marginBottom: '1.25rem' }}>
+              Welcome to Alamein Field Training Portal Version 2.0! We have rolled out exciting updates tailored to your portal role. Explore the tabs below to see what features are now available.
+            </p>
+            
+            {/* Tabs Inside Modal */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--ft-border-light)', paddingBottom: '0.75rem' }}>
+              {['student', 'trainer', 'admin'].map(tabRole => (
+                <button
+                  key={tabRole}
+                  type="button"
+                  onClick={() => setReleaseNotesTab(tabRole)}
+                  style={{
+                    background: releaseNotesTab === tabRole ? 'var(--ft-primary-bg)' : 'transparent',
+                    color: releaseNotesTab === tabRole ? 'var(--ft-primary)' : 'var(--ft-text-muted)',
+                    border: 'none',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--ft-radius-sm)',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tabRole === 'student' ? '👨‍🎓 For Students' : tabRole === 'trainer' ? '👨‍🏫 For Supervisors' : '🔑 For Admins'}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            {releaseNotesTab === 'student' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="ft-update-section">
+                  <h4>📝 Apply to Multiple Programs</h4>
+                  <p>Students can now register for more than one training program or wave at the same place, unlocking flexible scheduling.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>💳 Toggleable Payments & Custom Links</h4>
+                  <p>Waves requiring payment now feature a direct payment gateway redirect link and a secure document uploader.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>📄 Receipt Uploader with Image Preview</h4>
+                  <p>Upload a base64 receipt snapshot directly. View visual preview thumbnails and use the quick "Remove" option in case of mistakes.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>🔔 Real-Time Approval Notifications</h4>
+                  <p>A new notification bell in the top navbar alerts you immediately if your registration is approved, rejected, or auto-approved on wave deadlines.</p>
+                </div>
+              </div>
+            )}
+
+            {releaseNotesTab === 'trainer' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="ft-update-section">
+                  <h4>📱 Stretched Trainee Cards on Mobile</h4>
+                  <p>Trainee lists now adapt to narrow viewports. Quick evaluation and removal buttons stack in a finger-friendly bottom row.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>📋 Responsive Name Wrapping</h4>
+                  <p>Long student names and biotechnology titles wrap perfectly on mobile screens, avoiding squeeze overlap bugs.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>🔔 Live Evaluation Alert Feed</h4>
+                  <p>Stay up to date with real-time notification alerts sent straight to your top-bar bell dropdown when grades are synchronized.</p>
+                </div>
+              </div>
+            )}
+
+            {releaseNotesTab === 'admin' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="ft-update-section">
+                  <h4>⏳ Customizable Wave Durations & Deadlines</h4>
+                  <p>Admins can set precise registration deadlines and durations for individual programs and waves.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>📊 Live Seat Capacity Breakdown</h4>
+                  <p>Approve registrations with confidence. View real-time capacity overlays showing available, full, or overloaded counts, and other waiting requests.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>🔔 Request Notifications Feed</h4>
+                  <p>A notifications panel alerts you instantly when students submit new registrations, cancellations, or password reset requests.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>⚙️ Wrap-Around Dashboard Tab Controls</h4>
+                  <p>Tab button controllers wrap dynamically to multiple rows on tablets/mobiles, avoiding vertical clipping errors.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>📥 Receipt CSV Exporter Updates</h4>
+                  <p>CSV export sheets now include customized wave deadlines, duration dates, payment registration links, and receipt verification status.</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="ft-modal-footer" style={{ borderTop: '1px solid var(--ft-border-light)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="ft-btn ft-btn-primary" onClick={() => setShowReleaseNotesModal(false)}>Got it, thanks!</button>
+          </div>
         </div>
       </div>
     )}
