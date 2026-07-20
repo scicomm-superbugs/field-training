@@ -19,6 +19,8 @@ export default function FTDashboard() {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
 
+  const isStaff = userRole === 'admin' || userRole === 'master' || userRole === 'trainer' || userRole === 'faculty';
+
   const myRegPlaceIds = useMemo(() => {
     if (!registrations) return new Set();
     const storedUid = localStorage.getItem('ft_userId') || sessionStorage.getItem('ft_userId');
@@ -28,7 +30,6 @@ export default function FTDashboard() {
   const filteredPlaces = useMemo(() => {
     if (!places) return [];
     return places.filter(p => {
-      const isStaff = userRole === 'admin' || userRole === 'master' || userRole === 'trainer' || userRole === 'faculty';
       if (!isStaff && p.isVisible === false) {
         const isRegistered = myRegPlaceIds.has(p.id);
         if (!isRegistered) return false;
@@ -38,7 +39,7 @@ export default function FTDashboard() {
       const matchDept = deptFilter === 'All' || p.department === deptFilter;
       return matchSearch && matchDept;
     });
-  }, [places, search, deptFilter, userRole, myRegPlaceIds]);
+  }, [places, search, deptFilter, isStaff, myRegPlaceIds]);
 
   if (!places) {
     return (
@@ -144,7 +145,7 @@ export default function FTDashboard() {
                       ✓ Registered
                     </div>
                   )}
-                  {place.isVisible === false && (
+                  {isStaff && place.isVisible === false && (
                     <div style={{
                       position: 'absolute', top: 12, left: isRegistered ? 110 : 12,
                       background: 'rgba(239, 68, 68, 0.92)',
