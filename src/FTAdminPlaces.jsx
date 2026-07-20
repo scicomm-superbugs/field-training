@@ -1509,7 +1509,8 @@ export default function FTAdminPlaces() {
                   
                   return (
                     <tr key={place.id}>
-                      <td>
+                      <td style={{ position: 'relative' }}>
+                        <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: 'var(--ft-radius-sm)', overflow: 'hidden', flexShrink: 0 }}>
                             {place.image ? (
@@ -1732,9 +1733,6 @@ export default function FTAdminPlaces() {
                 })}
               </tbody>
             </table>
-          </div>
-          <div className="ft-swipe-indicator">
-            👈 Swipe
           </div>
         </div>
         )}
