@@ -1598,7 +1598,8 @@ export default function FTAdminPlaces() {
                             </div>
 
                             {expandedInsights[place.id] && (
-                              <div style={{ marginTop: '0.5rem', background: 'var(--ft-bg-input)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.6rem 0.75rem', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '420px', maxWidth: '100%' }}>
+                              <div style={{ position: 'relative', width: '420px', maxWidth: '100%', marginTop: '0.5rem' }}>
+                                <div style={{ background: 'var(--ft-bg-input)', border: '1.5px solid var(--ft-border)', borderRadius: 'var(--ft-radius-sm)', padding: '0.6rem 0.75rem', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowX: 'auto' }}>
                                 <div style={{ fontWeight: 700, color: 'var(--ft-text-secondary)', borderBottom: '1px solid var(--ft-border-light)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>
                                   📊 Seats & Waves Insights
                                 </div>
@@ -1680,6 +1681,10 @@ export default function FTAdminPlaces() {
                                     );
                                   }
                                 })()}
+                                </div>
+                                <div className="ft-swipe-indicator">
+                                  👈 Swipe
+                                </div>
                               </div>
                             )}
                           </div>

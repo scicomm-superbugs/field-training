@@ -1986,3 +1986,39 @@
     display: none !important;
   }
 }
+
+/* ── Swipe Hint Indicator ──────────────────────────────────────────── */
+.ft-swipe-indicator {
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  padding: 0.35rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  animation: ftSwipeHint 3.5s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 5;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes ftSwipeHint {
+  0% { transform: translate(10px, -50%); opacity: 0; }
+  10% { transform: translate(0, -50%); opacity: 1; }
+  30% { transform: translate(-20px, -50%); opacity: 1; }
+  45% { transform: translate(-20px, -50%); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@media (min-width: 640px) {
+  .ft-swipe-indicator {
+    display: none;
+  }
+}
