@@ -1177,7 +1177,7 @@ export default function FTPlaceDetails() {
                                 <span>📅 {w.duration}</span>
                                 {w.deadline && (
                                   <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
-                                    ⏰ Deadline: {new Date(w.deadline).toLocaleString()}
+                                    ⏰ Registration Deadline: <strong style={{ fontWeight: 600 }}>{new Date(w.deadline).toLocaleString()}</strong>
                                   </span>
                                 )}
                               </div>
@@ -1238,7 +1238,7 @@ export default function FTPlaceDetails() {
                                   <span>📅 {w.duration}</span>
                                   {w.deadline && (
                                     <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
-                                      ⏰ Deadline: {new Date(w.deadline).toLocaleString()}
+                                      ⏰ Registration Deadline: <strong style={{ fontWeight: 600 }}>{new Date(w.deadline).toLocaleString()}</strong>
                                     </span>
                                   )}
                                 </div>
