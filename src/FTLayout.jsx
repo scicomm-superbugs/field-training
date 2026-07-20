@@ -828,7 +828,7 @@ export default function FTLayout() {
               borderRadius: 'var(--ft-radius)'
             }}
           >
-            <span>✨</span> What's New
+            <span>✨</span> Version 2.0 Updates
           </button>
         </div>
       </aside>
