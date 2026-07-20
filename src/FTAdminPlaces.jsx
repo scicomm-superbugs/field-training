@@ -1617,11 +1617,13 @@ export default function FTAdminPlaces() {
                                                 const isPast = w.deadline ? new Date(w.deadline) < now : false;
                                                 const cap = isPast ? 0 : (parseInt(w.capacity) || 0);
                                                 const rem = cap - waveRegs.length;
+                                                const actualCap = parseInt(w.capacity) || 0;
+                                                const actualRem = actualCap - waveRegs.length;
                                                 return (
                                                   <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-muted)', fontSize: '0.74rem' }}>
-                                                    <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} taken</span>
+                                                    <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
                                                     <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                                      {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                                      {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                                     </span>
                                                   </div>
                                                 );
@@ -1641,11 +1643,13 @@ export default function FTAdminPlaces() {
                                       const isPast = w.deadline ? new Date(w.deadline) < now : false;
                                       const cap = isPast ? 0 : (parseInt(w.capacity) || 0);
                                       const rem = cap - waveRegs.length;
+                                      const actualCap = parseInt(w.capacity) || 0;
+                                      const actualRem = actualCap - waveRegs.length;
                                       return (
                                         <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ft-text-secondary)', fontSize: '0.78rem' }}>
-                                          <span>🌊 {w.name}: {waveRegs.length}/{parseInt(w.capacity) || 0} taken</span>
+                                          <span>🌊 {w.name}: {waveRegs.length}/{actualCap} taken</span>
                                           <span style={isPast ? { color: 'var(--ft-danger)', fontWeight: 600 } : rem <= 0 ? { color: 'var(--ft-danger)', fontWeight: 600 } : { color: 'var(--ft-success)', fontWeight: 600 }}>
-                                            {isPast ? 'Passed deadline' : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
+                                            {isPast ? `Passed (${waveRegs.length}/${actualCap})${actualRem < 0 ? ` +${Math.abs(actualRem)} overloaded` : ''}` : (rem > 0 ? `${rem} left` : (rem < 0 ? `Full (+${Math.abs(rem)} overloaded)` : 'Full'))}
                                           </span>
                                         </div>
                                       );
