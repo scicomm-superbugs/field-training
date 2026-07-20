@@ -1049,11 +1049,18 @@ export default function FTAdminPlaces() {
     }
 
     const rows = placeRegs.map(r => {
+      // Fetch latest user data from scientists if available
+      const user = scientists?.find(s => s.id === r.studentId);
+      const studentName = user?.name || r.studentName || '—';
+      const studentUniversityId = user?.universityId || r.studentUniversityId || '—';
+      const studentPhone = user?.phone || r.studentPhone || '—';
+      const studentDepartment = user?.department || r.studentDepartment || '—';
+
       const row = [
-        `"${r.studentName || '—'}"`,
-        `"${r.studentUniversityId || '—'}"`,
-        `"${r.studentPhone || '—'}"`,
-        `"${r.studentDepartment || '—'}"`
+        `"${studentName}"`,
+        `"${studentUniversityId}"`,
+        `"${studentPhone}"`,
+        `"${studentDepartment}"`
       ];
       if (hasMultiplePrograms) {
         row.push(`"${r.programName || '—'}"`);
