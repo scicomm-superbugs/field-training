@@ -305,7 +305,7 @@ export default function FTAdminStudents() {
                 <Fragment key={s.id}>
                   <tr onClick={() => setExpandedStudent(expandedStudent === s.id ? null : s.id)} style={{ cursor: 'pointer' }}>
                     <td style={{ width: '110px', position: 'relative' }}>
-                      {!hasSwipedTable && <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
+                      {!hasSwipedTable && <div className="ft-swipe-indicator" style={{ left: 'calc(100vw - 120px)', right: 'auto', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
                       <span style={{ 
                         fontFamily: "'Outfit', sans-serif", 
                         fontWeight: 700, 
