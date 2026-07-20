@@ -1043,15 +1043,16 @@ export default function FTAdminPlaces() {
     const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed') || [];
     const hasMultiplePrograms = place.hasPrograms && place.programs && place.programs.length > 1;
 
-    let headers = ['Student Name', 'University ID', 'Department', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
+    let headers = ['Student Name', 'University ID', 'Student Phone', 'Department', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
     if (hasMultiplePrograms) {
-      headers = ['Student Name', 'University ID', 'Department', 'Program', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
+      headers = ['Student Name', 'University ID', 'Student Phone', 'Department', 'Program', 'Selected Wave', 'Wave Start Date', 'Wave End Date', 'Wave Deadline', 'Payment Required', 'Payment Receipt', 'Registration Status', 'Registered Date'];
     }
 
     const rows = placeRegs.map(r => {
       const row = [
         `"${r.studentName || '—'}"`,
         `"${r.studentUniversityId || '—'}"`,
+        `"${r.studentPhone || '—'}"`,
         `"${r.studentDepartment || '—'}"`
       ];
       if (hasMultiplePrograms) {

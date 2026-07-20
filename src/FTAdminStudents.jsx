@@ -114,8 +114,8 @@ export default function FTAdminStudents() {
 
   // Export CSV
   const exportCSV = () => {
-    const headers = ['Name', 'University ID', 'Email', 'Department', 'Registered Hours', 'Completed Hours', 'Required Hours', 'Progress %'];
-    const rows = filtered.map(s => [s.name, s.universityId || '—', s.email || '', s.department || '', s.registered, s.completed, s.required, s.pct]);
+    const headers = ['Name', 'University ID', 'Email', 'Phone', 'Department', 'Registered Hours', 'Completed Hours', 'Required Hours', 'Progress %'];
+    const rows = filtered.map(s => [s.name, s.universityId || '—', s.email || '', s.phone || '', s.department || '', s.registered, s.completed, s.required, s.pct]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

@@ -10,6 +10,7 @@ export default function Register() {
     name: '',
     username: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     department: '',
@@ -81,6 +82,7 @@ export default function Register() {
         universityId: isSupervisor ? '' : formData.universityId.trim(),
         title: isSupervisor ? (formData.title ? formData.title.trim() : 'Supervisor') : '',
         role: isSupervisor ? 'trainer' : 'student',
+        phone: formData.phone.trim(),
         accountStatus: isSupervisor ? 'pending' : 'active',
         employeeId: generatedId,
         university: 'Alamein International University',
@@ -90,7 +92,7 @@ export default function Register() {
       });
 
       setSuccess(isSupervisor ? 'Registration successful! Your supervisor account is pending approval by an administrator.' : 'Registration successful! You can now log in.');
-      setFormData({ name: '', username: '', email: '', password: '', confirmPassword: '', department: '', universityId: '', title: '', role: 'student' });
+      setFormData({ name: '', username: '', email: '', phone: '', password: '', confirmPassword: '', department: '', universityId: '', title: '', role: 'student' });
       setIsRegistering(false);
     } catch (err) {
       setError('Registration failed: ' + err.message);
@@ -180,6 +182,11 @@ export default function Register() {
           <div className="ft-input-group">
             <label className="ft-label">Email Address *</label>
             <input type="email" className="ft-input" name="email" required value={formData.email} onChange={handleChange} placeholder="name@example.com" />
+          </div>
+
+          <div className="ft-input-group">
+            <label className="ft-label">WhatsApp Phone Number *</label>
+            <input type="tel" className="ft-input" name="phone" required value={formData.phone} onChange={handleChange} placeholder="e.g. 01012345678" />
           </div>
 
           <div className="ft-input-group">

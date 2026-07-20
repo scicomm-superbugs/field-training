@@ -48,6 +48,11 @@ export default function FTLayout() {
   const [dateConflicts, setDateConflicts] = useState([]);
   const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
 
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const needsPhone = meDoc && (meDoc.role === 'student' || meDoc.role === 'user' || !meDoc.role) && !meDoc.phone;
+
   // Load full user doc
   useEffect(() => {
     if (!user?.id) return;
@@ -1171,6 +1176,57 @@ export default function FTLayout() {
           <div className="ft-modal-footer" style={{ borderTop: '1px solid var(--ft-border-light)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
             <button className="ft-btn ft-btn-primary" onClick={() => setShowReleaseNotesModal(false)}>Got it, thanks!</button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Mandatory Phone Modal */}
+    {needsPhone && (
+      <div className="ft-modal-overlay">
+        <div className="ft-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+          <div className="ft-modal-header">
+            <h3 className="ft-modal-title">📱 Add Your Phone Number</h3>
+          </div>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!phoneInput.trim()) {
+              setPhoneError('Please enter a valid phone number.');
+              return;
+            }
+            setSavingPhone(true);
+            setPhoneError('');
+            try {
+              await db.scientists.update(user.id, { phone: phoneInput.trim() });
+              const updated = await db.scientists.get(user.id);
+              setMeDoc(updated);
+            } catch (err) {
+              setPhoneError('Failed to save phone number: ' + err.message);
+            }
+            setSavingPhone(false);
+          }}>
+            <div className="ft-modal-body" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--ft-text-secondary)', marginBottom: '1rem' }}>
+                For a successful login, please enter your WhatsApp phone number. This is required for communication regarding your field training.
+              </p>
+              {phoneError && <div className="ft-alert ft-alert-error" style={{ marginBottom: '1rem' }}>{phoneError}</div>}
+              <div className="ft-input-group" style={{ marginBottom: 0 }}>
+                <label className="ft-label">WhatsApp Phone Number *</label>
+                <input 
+                  type="tel" 
+                  className="ft-input" 
+                  value={phoneInput} 
+                  onChange={e => setPhoneInput(e.target.value)} 
+                  placeholder="e.g. 01012345678" 
+                  required 
+                />
+              </div>
+            </div>
+            <div className="ft-modal-footer">
+              <button type="submit" className="ft-btn ft-btn-primary ft-w-full" disabled={savingPhone}>
+                {savingPhone ? 'Saving...' : 'Save & Continue'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     )}
