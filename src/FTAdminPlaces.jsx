@@ -1449,16 +1449,23 @@ export default function FTAdminPlaces() {
                   const assignedTrainers = trainers.filter(t => place.trainerIds?.includes(t.id) || t.id === place.trainerId);
                   
                   let totalCapacity = 0;
+                  const now = new Date();
                   if (place.hasPrograms && place.programs) {
                     place.programs.forEach(prog => {
                       if (prog.waves && prog.waves.length > 0) {
-                        totalCapacity += prog.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+                        totalCapacity += prog.waves.reduce((sum, w) => {
+                          const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                          return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
+                        }, 0);
                       } else {
                         totalCapacity += parseInt(prog.capacity) || 0;
                       }
                     });
                   } else if (place.waves && place.waves.length > 0) {
-                    totalCapacity = place.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+                    totalCapacity = place.waves.reduce((sum, w) => {
+                      const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                      return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
+                    }, 0);
                   } else {
                     totalCapacity = parseInt(place.capacity) || 0;
                   }
@@ -1466,7 +1473,7 @@ export default function FTAdminPlaces() {
                   const placeRegs = registrations?.filter(r => r.placeId === place.id && r.status !== 'failed' && !r.isTest) || [];
                   const regCount = placeRegs.length;
                   
-                  // Calculate remaining available spots correctly (capping wave/program overloads at 0)
+                  // Calculate remaining available spots correctly (capping wave/program overloads at 0, and ignoring past deadlines)
                   let remaining = 0;
                   if (place.hasPrograms && place.programs) {
                     place.programs.forEach(prog => {
@@ -1474,7 +1481,8 @@ export default function FTAdminPlaces() {
                       if (prog.waves && prog.waves.length > 0) {
                         prog.waves.forEach(w => {
                           const waveRegsCount = progRegs.filter(r => r.waveId === w.id).length;
-                          const wCap = parseInt(w.capacity) || 0;
+                          const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                          const wCap = isPast ? 0 : (parseInt(w.capacity) || 0);
                           remaining += Math.max(0, wCap - waveRegsCount);
                         });
                       } else {
@@ -1485,7 +1493,8 @@ export default function FTAdminPlaces() {
                   } else if (place.waves && place.waves.length > 0) {
                     place.waves.forEach(w => {
                       const waveRegsCount = placeRegs.filter(r => r.waveId === w.id).length;
-                      const wCap = parseInt(w.capacity) || 0;
+                      const isPast = w.deadline ? new Date(w.deadline) < now : false;
+                      const wCap = isPast ? 0 : (parseInt(w.capacity) || 0);
                       remaining += Math.max(0, wCap - waveRegsCount);
                     });
                   } else {

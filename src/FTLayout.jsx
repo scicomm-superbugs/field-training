@@ -4,8 +4,9 @@ import { useAuth } from './context/AuthContext';
 import { db, firestore, getCollectionName, useLiveCollection, getFirebaseAuth } from './db';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { MapPin, BookOpen, Users, Settings, ClipboardCheck, LayoutDashboard, LogOut, Moon, Sun, Menu, X, ChevronDown, GraduationCap, Bell } from 'lucide-react';
+import { MapPin, BookOpen, Users, Settings, ClipboardCheck, LayoutDashboard, LogOut, Moon, Sun, Menu, X, ChevronDown, GraduationCap, Bell, AlertTriangle } from 'lucide-react';
 import { FT_FACULTY, FT_ROLE_LABELS, FT_ROLE_COLORS, isFacultyRole, isTrainerRole, isStudentRole, FT_DEFAULT_REQUIRED_HOURS } from './ftConstants';
+import { getUserConflicts } from './ftConflictUtils';
 import bcrypt from 'bcryptjs';
 import './fieldtraining.css';
 
@@ -44,6 +45,8 @@ export default function FTLayout() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [releaseNotesTab, setReleaseNotesTab] = useState('student');
+  const [dateConflicts, setDateConflicts] = useState([]);
+  const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
 
   // Load full user doc
   useEffect(() => {
@@ -233,6 +236,74 @@ export default function FTLayout() {
       });
     }
   }, [places, registrations]);
+
+  // Scan for date conflicts and seed warning notifications for students
+  useEffect(() => {
+    if (!user?.id || !registrations || !places || !meDoc) return;
+    const isStudent = isStudentRole(meDoc.role) || meDoc.role === 'user' || !meDoc.role;
+    if (!isStudent) { setDateConflicts([]); return; }
+
+    const conflicts = getUserConflicts(user.id, registrations, places);
+    setDateConflicts(conflicts);
+
+    if (conflicts.length > 0) {
+      (async () => {
+        try {
+          const notifCol = getCollectionName('ft_notifications');
+          const q = query(
+            collection(firestore, notifCol),
+            where('type', '==', 'date_conflict'),
+            where('targetUserId', '==', user.id)
+          );
+          const snap = await getDocs(q);
+          if (snap.empty) {
+            await db.ft_notifications.add({
+              title: '⚠️ Schedule Conflict Detected',
+              message: `You have ${conflicts.length} overlapping wave registration(s). Please review your training schedule to avoid time conflicts.`,
+              type: 'date_conflict',
+              status: 'unread',
+              targetRoles: ['student', 'user'],
+              targetUserId: user.id,
+              createdAt: new Date().toISOString(),
+              link: '/my-training'
+            });
+          }
+        } catch (err) {
+          console.error('Failed to seed date conflict notification:', err);
+        }
+      })();
+    }
+  }, [user?.id, registrations, places, meDoc]);
+
+  // Auto-sync registration records when user profile changes
+  useEffect(() => {
+    if (!user?.id || !meDoc || !registrations) return;
+    const isStudent = isStudentRole(meDoc.role) || meDoc.role === 'user' || !meDoc.role;
+    if (!isStudent) return;
+
+    (async () => {
+      try {
+        const myRegs = registrations.filter(r => r.studentId === user.id);
+        for (const reg of myRegs) {
+          const needsUpdate =
+            (meDoc.name && reg.studentName !== meDoc.name) ||
+            (meDoc.universityId && reg.studentUniversityId !== meDoc.universityId) ||
+            (meDoc.email && reg.studentEmail !== meDoc.email) ||
+            (meDoc.department && reg.studentDepartment !== meDoc.department);
+          if (needsUpdate) {
+            await db.ft_registrations.update(reg.id, {
+              studentName: meDoc.name || reg.studentName || '',
+              studentUniversityId: meDoc.universityId || reg.studentUniversityId || '',
+              studentEmail: meDoc.email || reg.studentEmail || '',
+              studentDepartment: meDoc.department || reg.studentDepartment || ''
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync registration records with profile:', err);
+      }
+    })();
+  }, [user?.id, meDoc?.name, meDoc?.universityId, meDoc?.email, meDoc?.department, registrations]);
 
   useEffect(() => {
     if (meDoc) {
@@ -765,6 +836,46 @@ export default function FTLayout() {
       {/* ── Main Content ───────────────────────────────────── */}
       <main className="ft-main">
         <div style={{ flex: 1 }}>
+           {/* Date Conflict Warning Banner */}
+           {dateConflicts.length > 0 && !conflictBannerDismissed && (isStudentRole(userRole) || userRole === 'user') && (
+             <div style={{
+               background: 'linear-gradient(135deg, rgba(239,68,68,0.06), rgba(251,146,60,0.06))',
+               border: '1.5px solid rgba(239,68,68,0.2)',
+               borderRadius: 'var(--ft-radius)',
+               padding: '1rem 1.25rem',
+               margin: '0 0 1.25rem',
+               display: 'flex',
+               alignItems: 'flex-start',
+               gap: '0.75rem'
+             }}>
+               <AlertTriangle size={20} style={{ color: 'var(--ft-danger)', flexShrink: 0, marginTop: '0.1rem' }} />
+               <div style={{ flex: 1 }}>
+                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--ft-danger)', marginBottom: '0.35rem', fontFamily: "'Outfit', sans-serif" }}>
+                   ⚠️ Schedule Conflict Detected
+                 </div>
+                 <div style={{ fontSize: '0.82rem', color: 'var(--ft-text-secondary)', lineHeight: 1.6 }}>
+                   You have <strong>{dateConflicts.length}</strong> overlapping wave registration(s):
+                   {dateConflicts.map((c, i) => (
+                     <div key={i} style={{ marginTop: '0.35rem', padding: '0.4rem 0.6rem', background: 'rgba(0,0,0,0.03)', borderRadius: '6px', fontSize: '0.78rem' }}>
+                       <strong>{c.place1?.name}</strong> ({c.wave1?.name})
+                       <span style={{ margin: '0 0.35rem', color: 'var(--ft-danger)' }}>⟷</span>
+                       <strong>{c.place2?.name}</strong> ({c.wave2?.name})
+                     </div>
+                   ))}
+                 </div>
+                 <div style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', marginTop: '0.5rem' }}>
+                   Please visit your registrations and consider changing to a non-conflicting wave.
+                 </div>
+               </div>
+               <button
+                 onClick={() => setConflictBannerDismissed(true)}
+                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ft-text-muted)', padding: '0.25rem', flexShrink: 0 }}
+                 title="Dismiss"
+               >
+                 <X size={16} />
+               </button>
+             </div>
+           )}
            <Outlet context={{ meDoc, creditData, userRole, places, registrations, settings, resetRequests }} />
         </div>
 

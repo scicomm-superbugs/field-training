@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { db } from './db';
-import { ArrowLeft, Clock, MapPin, Users, GraduationCap, User, Building2, XCircle, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Users, GraduationCap, User, Building2, XCircle, Calendar, AlertTriangle } from 'lucide-react';
+import { getWaveDates, areDatesOverlapping, getAlternativeWaves } from './ftConflictUtils';
 
 export default function FTPlaceDetails() {
   const { placeId } = useParams();
@@ -24,6 +25,7 @@ export default function FTPlaceDetails() {
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [changeProgramId, setChangeProgramId] = useState('');
   const [changeWaveId, setChangeWaveId] = useState('');
+  const [conflictModal, setConflictModal] = useState(null);
 
   const userId = localStorage.getItem('ft_userId') || sessionStorage.getItem('ft_userId');
 
@@ -110,16 +112,23 @@ export default function FTPlaceDetails() {
 
   const totalCapacity = useMemo(() => {
     if (!place) return 0;
+    const now = new Date();
     if (place.hasPrograms && place.programs) {
       return place.programs.reduce((acc, p) => {
         if (p.waves && p.waves.length > 0) {
-          return acc + p.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+          return acc + p.waves.reduce((sum, w) => {
+            const isPast = w.deadline ? new Date(w.deadline) < now : false;
+            return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
+          }, 0);
         }
         return acc + (parseInt(p.capacity) || 0);
       }, 0);
     }
     if (place.waves && place.waves.length > 0) {
-      return place.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
+      return place.waves.reduce((sum, w) => {
+        const isPast = w.deadline ? new Date(w.deadline) < now : false;
+        return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
+      }, 0);
     }
     return parseInt(place.capacity) || 0;
   }, [place]);
@@ -219,6 +228,42 @@ export default function FTPlaceDetails() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const checkDateConflicts = (chosenWave) => {
+    if (!chosenWave || !places || !registrations || !userId) return null;
+    const targetDates = getWaveDates(chosenWave);
+    if (!targetDates) return null;
+
+    const myActiveRegs = registrations.filter(r =>
+      r.studentId === userId &&
+      (r.status === 'active' || r.status === 'pending' || r.status === 'completed')
+    );
+
+    for (const reg of myActiveRegs) {
+      const regPlace = places.find(p => p.id === reg.placeId);
+      if (!regPlace) continue;
+      let regWave = null;
+      if (regPlace.hasPrograms && regPlace.programs) {
+        const prog = regPlace.programs.find(p => p.id === reg.programId);
+        if (prog && prog.waves) regWave = prog.waves.find(w => w.id === reg.waveId);
+      } else if (regPlace.waves) {
+        regWave = regPlace.waves.find(w => w.id === reg.waveId);
+      }
+      if (!regWave) continue;
+      const regDates = getWaveDates(regWave);
+      if (!regDates) continue;
+      if (areDatesOverlapping(targetDates.start, targetDates.end, regDates.start, regDates.end)) {
+        return {
+          conflictingReg: reg,
+          conflictingPlace: regPlace,
+          conflictingWave: regWave,
+          conflictDates: regDates,
+          targetDates
+        };
+      }
+    }
+    return null;
+  };
+
   const handleRegister = async () => {
     if (registering) return;
 
@@ -238,6 +283,21 @@ export default function FTPlaceDetails() {
       setToast({ type: 'error', msg: 'The registration deadline for this wave has passed.' });
       setTimeout(() => setToast(null), 3000);
       return;
+    }
+
+    // Date conflict check
+    if (chosenWave) {
+      const conflict = checkDateConflicts(chosenWave);
+      if (conflict) {
+        const alternatives = getAlternativeWaves(place, selectedProgramId, registrations, places, userId);
+        setConflictModal({
+          targetWave: chosenWave,
+          targetPlace: place,
+          ...conflict,
+          alternatives: alternatives.filter(a => a.wave.id !== chosenWave.id)
+        });
+        return;
+      }
     }
 
     const paymentRequired = chosenWave?.payToRegister || chosenProgram?.payToRegister || place?.payToRegister || false;
@@ -1336,6 +1396,96 @@ export default function FTPlaceDetails() {
                   setTimeout(() => setToast(null), 3000);
                 }}>Remove</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Date Conflict Modal */}
+      {conflictModal && (
+        <div className="ft-modal-overlay" onClick={() => setConflictModal(null)}>
+          <div className="ft-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="ft-modal-header" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(251,146,60,0.08))', borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
+              <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--ft-danger)' }}>
+                <AlertTriangle size={20} /> Schedule Conflict Detected
+              </h2>
+              <button className="ft-modal-close" onClick={() => setConflictModal(null)}><XCircle size={20} /></button>
+            </div>
+            <div className="ft-modal-body" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--ft-text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
+                The wave you selected has overlapping dates with an existing registration. You cannot register for two waves that run at the same time.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                {/* Attempted wave */}
+                <div style={{ padding: '0.75rem', borderRadius: 'var(--ft-radius-sm)', border: '1.5px solid var(--ft-danger)', background: 'rgba(239,68,68,0.04)' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-danger)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>You are trying to register for</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--ft-text)' }}>{conflictModal.targetPlace?.name}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--ft-text-secondary)' }}>
+                    {conflictModal.targetWave?.name} — 📅 {conflictModal.targetWave?.duration || `${conflictModal.targetDates?.start?.toLocaleDateString()} – ${conflictModal.targetDates?.end?.toLocaleDateString()}`}
+                  </div>
+                </div>
+
+                {/* Conflicting registration */}
+                <div style={{ padding: '0.75rem', borderRadius: 'var(--ft-radius-sm)', border: '1px solid var(--ft-border)', background: 'rgba(0,0,0,0.02)' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-warning, #f59e0b)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conflicts with your existing registration</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--ft-text)' }}>{conflictModal.conflictingPlace?.name}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--ft-text-secondary)' }}>
+                    {conflictModal.conflictingWave?.name} — 📅 {conflictModal.conflictingWave?.duration || `${conflictModal.conflictDates?.start?.toLocaleDateString()} – ${conflictModal.conflictDates?.end?.toLocaleDateString()}`}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--ft-text-muted)', marginTop: '0.25rem' }}>
+                    Status: {conflictModal.conflictingReg?.status}
+                  </div>
+                </div>
+              </div>
+
+              {/* Alternative Suggestions */}
+              {conflictModal.alternatives && conflictModal.alternatives.length > 0 && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ft-primary)', marginBottom: '0.5rem' }}>
+                    💡 Suggested Alternatives (no date conflict):
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {conflictModal.alternatives.map(alt => (
+                      <div 
+                        key={alt.wave.id}
+                        onClick={() => {
+                          setSelectedWaveId(alt.wave.id);
+                          setConflictModal(null);
+                        }}
+                        style={{
+                          padding: '0.6rem 0.75rem',
+                          borderRadius: 'var(--ft-radius-sm)',
+                          border: '1px solid var(--ft-primary)',
+                          background: 'var(--ft-primary-bg)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--ft-primary)' }}>{alt.wave.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>📅 {alt.wave.duration}</span>
+                          <span style={{ color: 'var(--ft-success)', fontWeight: 600 }}>{alt.seatsLeft} seats left</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {conflictModal.alternatives && conflictModal.alternatives.length === 0 && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--ft-text-muted)', fontStyle: 'italic', marginBottom: '0.75rem' }}>
+                  ⚠️ No alternative non-conflicting waves are available at this time.
+                </p>
+              )}
+
+              <button 
+                className="ft-btn ft-btn-secondary" 
+                style={{ width: '100%' }} 
+                onClick={() => setConflictModal(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

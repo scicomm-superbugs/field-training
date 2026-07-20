@@ -149,10 +149,25 @@ export default function FTAdminStudents() {
 
       await db.scientists.update(editingStudent.id, updates);
       
+      // Auto-sync registration records with updated profile info
+      if (registrations) {
+        const studentRegs = registrations.filter(r => r.studentId === editingStudent.id);
+        for (const reg of studentRegs) {
+          const regUpdates = {};
+          if (updates.name && reg.studentName !== updates.name) regUpdates.studentName = updates.name;
+          if (updates.universityId !== undefined && reg.studentUniversityId !== updates.universityId) regUpdates.studentUniversityId = updates.universityId;
+          if (updates.email && reg.studentEmail !== updates.email) regUpdates.studentEmail = updates.email;
+          if (updates.department && reg.studentDepartment !== updates.department) regUpdates.studentDepartment = updates.department;
+          if (Object.keys(regUpdates).length > 0) {
+            try { await db.ft_registrations.update(reg.id, regUpdates); } catch (e) { console.error('Failed to sync reg:', e); }
+          }
+        }
+      }
+
       // Update local state list
       setStudents(prev => prev.map(u => u.id === editingStudent.id ? { ...u, ...updates } : u));
       setEditingStudent(null);
-      alert('Account details updated successfully!');
+      alert('Account details updated successfully! Registration records have been synced.');
     } catch (err) {
       alert('Failed to update: ' + err.message);
     }
