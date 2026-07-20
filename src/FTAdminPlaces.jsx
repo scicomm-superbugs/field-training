@@ -1825,13 +1825,8 @@ export default function FTAdminPlaces() {
                   <textarea className="ft-textarea" value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} placeholder="Prerequisites or requirements for students..." rows={2} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="ft-input-group">
-                    <label className="ft-label">Capacity (optional)</label>
-                    <input className="ft-input" type="number" min="0" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} placeholder="Max students" />
-                  </div>
-                  <div className="ft-input-group">
-                    <label className="ft-label">Assign Trainers</label>
+                <div className="ft-input-group">
+                  <label className="ft-label">Assign Trainers</label>
                     <div style={{
                       border: '1.5px solid var(--ft-border)',
                       borderRadius: 'var(--ft-radius)',
@@ -1870,7 +1865,6 @@ export default function FTAdminPlaces() {
                       )}
                     </div>
                   </div>
-                </div>
 
                 <div className="ft-input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
                   <input 
@@ -1967,33 +1961,18 @@ export default function FTAdminPlaces() {
                                />
                              </div>
 
-                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                               <div className="ft-input-group">
-                                 <label className="ft-label">Credit Hours *</label>
-                                 <input
-                                   className="ft-input"
-                                   style={{ background: 'var(--ft-bg-card)' }}
-                                   type="number"
-                                   min="0"
-                                   required
-                                   value={prog.creditHours}
-                                   onChange={e => handleUpdateProgram(prog.id, 'creditHours', e.target.value)}
-                                   placeholder="e.g. 80"
-                                 />
-                               </div>
-                               <div className="ft-input-group">
-                                 <label className="ft-label">Capacity *</label>
-                                 <input
-                                   className="ft-input"
-                                   style={{ background: 'var(--ft-bg-card)' }}
-                                   type="number"
-                                   min="1"
-                                   required
-                                   value={prog.capacity}
-                                   onChange={e => handleUpdateProgram(prog.id, 'capacity', e.target.value)}
-                                   placeholder="e.g. 30"
-                                 />
-                               </div>
+                             <div className="ft-input-group">
+                               <label className="ft-label">Credit Hours *</label>
+                               <input
+                                 className="ft-input"
+                                 style={{ background: 'var(--ft-bg-card)' }}
+                                 type="number"
+                                 min="0"
+                                 required
+                                 value={prog.creditHours}
+                                 onChange={e => handleUpdateProgram(prog.id, 'creditHours', e.target.value)}
+                                 placeholder="e.g. 80"
+                               />
                              </div>
 
                              <div className="ft-input-group">
