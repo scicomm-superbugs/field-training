@@ -5,7 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { Search, Download, X } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 import { FT_DEPARTMENTS, FT_REG_STATUS_ICONS, FT_REG_STATUS_LABELS, FT_DEFAULT_REQUIRED_HOURS } from './ftConstants';
-import { getUserConflicts } from './ftConflictUtils';
+import { getUserConflicts, getWaveDates } from './ftConflictUtils';
 
 export default function FTAdminStudents() {
   const { registrations, places, settings, meDoc, userRole } = useOutletContext();
@@ -52,26 +52,45 @@ export default function FTAdminStudents() {
 
   // Compute student data with progress
   const enrichedStudents = useMemo(() => {
-    if (!registrations || !places) return students.map(s => ({ ...s, registered: 0, completed: 0, regs: [] }));
+    if (!registrations || !places) return students.map(s => ({ ...s, registered: 0, completed: 0, regs: [], isInProgress: false }));
+
+    const now = new Date();
 
     return students.map(s => {
       const myRegs = registrations.filter(r => r.studentId === s.id);
       let registered = 0;
       let completed = 0;
+      let hasOngoingWave = false;
 
       myRegs.forEach(reg => {
         const place = places.find(p => p.id === reg.placeId);
         const hours = place?.creditHours || reg.creditHours || 0;
         registered += hours;
         if (reg.status === 'completed') completed += hours;
+        
+        if (place && reg.status !== 'failed' && reg.status !== 'rejected') {
+          let wave = null;
+          if (place.hasPrograms && reg.programId) {
+            const prog = place.programs?.find(p => p.id === reg.programId);
+            wave = prog?.waves?.find(w => w.id === reg.waveId);
+          } else {
+            wave = place.waves?.find(w => w.id === reg.waveId);
+          }
+          const dates = getWaveDates(wave);
+          if (dates && now >= dates.start && now <= dates.end) {
+            hasOngoingWave = true;
+          }
+        }
       });
 
       const deptRequired = settingsDoc?.departmentOverrides?.[s.department] || requiredHours;
       const pct = deptRequired > 0 ? Math.min(100, Math.round((completed / deptRequired) * 100)) : 0;
       
       const conflicts = getUserConflicts(s.id, registrations, places);
+      
+      const isInProgress = (pct > 0 && pct < 100) || hasOngoingWave;
 
-      return { ...s, registered, completed, required: deptRequired, pct, regs: myRegs, hasConflicts: conflicts.length > 0 };
+      return { ...s, registered, completed, required: deptRequired, pct, regs: myRegs, hasConflicts: conflicts.length > 0, isInProgress };
     });
   }, [students, registrations, places, settingsDoc, requiredHours]);
 
@@ -86,8 +105,8 @@ export default function FTAdminStudents() {
       const matchDept = deptFilter === 'All' || s.department === deptFilter;
       const matchStatus = statusFilter === 'All' ||
         (statusFilter === 'completed' && s.pct >= 100) ||
-        (statusFilter === 'in-progress' && s.pct > 0 && s.pct < 100) ||
-        (statusFilter === 'not-started' && s.pct === 0) ||
+        (statusFilter === 'in-progress' && s.isInProgress && s.pct < 100) ||
+        (statusFilter === 'not-started' && s.pct === 0 && !s.isInProgress) ||
         (statusFilter === 'conflicted' && s.hasConflicts);
       return matchSearch && matchDept && matchStatus;
     });
@@ -180,8 +199,8 @@ export default function FTAdminStudents() {
   // Stats
   const totalStudents = enrichedStudents.length;
   const completedStudents = enrichedStudents.filter(s => s.pct >= 100).length;
-  const inProgressStudents = enrichedStudents.filter(s => s.pct > 0 && s.pct < 100).length;
-  const notStartedStudents = enrichedStudents.filter(s => s.pct === 0).length;
+  const inProgressStudents = enrichedStudents.filter(s => s.isInProgress && s.pct < 100).length;
+  const notStartedStudents = enrichedStudents.filter(s => s.pct === 0 && !s.isInProgress).length;
   const conflictedStudents = enrichedStudents.filter(s => s.hasConflicts).length;
 
   return (
@@ -326,7 +345,7 @@ export default function FTAdminStudents() {
                     <td style={{ width: '95px' }}>
                       {s.pct >= 100 ? (
                         <span className="ft-badge ft-badge-completed">Done</span>
-                      ) : s.pct > 0 ? (
+                      ) : s.isInProgress ? (
                         <span className="ft-badge ft-badge-active">Active</span>
                       ) : (
                         <span className="ft-badge ft-badge-pending">Not Started</span>
