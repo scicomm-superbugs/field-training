@@ -1113,16 +1113,16 @@ export default function FTLayout() {
             {releaseNotesTab === 'student' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div className="ft-update-section">
+                  <h4>📱 Mandatory WhatsApp Contact</h4>
+                  <p>To ensure smooth communication, a one-time WhatsApp phone number entry is now required upon login.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>💳 Visual Payment Guidance</h4>
+                  <p>When payment is required, the register button intelligently dims and guides you to the upload section with a shake animation if a receipt is missing.</p>
+                </div>
+                <div className="ft-update-section">
                   <h4>📝 Apply to Multiple Programs</h4>
                   <p>Students can now register for more than one training program or wave at the same place, unlocking flexible scheduling.</p>
-                </div>
-                <div className="ft-update-section">
-                  <h4>💳 Toggleable Payments & Custom Links</h4>
-                  <p>Waves requiring payment now feature a direct payment gateway redirect link and a secure document uploader.</p>
-                </div>
-                <div className="ft-update-section">
-                  <h4>📄 Receipt Uploader with Image Preview</h4>
-                  <p>Upload a base64 receipt snapshot directly. View visual preview thumbnails and use the quick "Remove" option in case of mistakes.</p>
                 </div>
                 <div className="ft-update-section">
                   <h4>🔔 Real-Time Approval Notifications</h4>
@@ -1151,24 +1151,20 @@ export default function FTLayout() {
             {releaseNotesTab === 'admin' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div className="ft-update-section">
+                  <h4>📊 Live Seat Capacity Breakdown</h4>
+                  <p>Insights now intelligently format expired waves (e.g., 'Passed +2 overloaded') and display wave dates directly underneath each wave name.</p>
+                </div>
+                <div className="ft-update-section">
+                  <h4>📥 Dynamic Profile CSV Exporter</h4>
+                  <p>CSV export sheets now fetch the absolute latest student profile information live, ignoring old data saved at the time of registration.</p>
+                </div>
+                <div className="ft-update-section">
                   <h4>⏳ Customizable Wave Durations & Deadlines</h4>
                   <p>Admins can set precise registration deadlines and durations for individual programs and waves.</p>
                 </div>
                 <div className="ft-update-section">
-                  <h4>📊 Live Seat Capacity Breakdown</h4>
-                  <p>Approve registrations with confidence. View real-time capacity overlays showing available, full, or overloaded counts, and other waiting requests.</p>
-                </div>
-                <div className="ft-update-section">
                   <h4>🔔 Request Notifications Feed</h4>
                   <p>A notifications panel alerts you instantly when students submit new registrations, cancellations, or password reset requests.</p>
-                </div>
-                <div className="ft-update-section">
-                  <h4>⚙️ Wrap-Around Dashboard Tab Controls</h4>
-                  <p>Tab button controllers wrap dynamically to multiple rows on tablets/mobiles, avoiding vertical clipping errors.</p>
-                </div>
-                <div className="ft-update-section">
-                  <h4>📥 Receipt CSV Exporter Updates</h4>
-                  <p>CSV export sheets now include customized wave deadlines, duration dates, payment registration links, and receipt verification status.</p>
                 </div>
               </div>
             )}
