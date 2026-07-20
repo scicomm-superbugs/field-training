@@ -1102,18 +1102,18 @@ export default function FTPlaceDetails() {
                                 transition: 'all 0.2s',
                               }}
                             >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
                                   {w.name}
                                 </span>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-success)' }}>
                                   {isWaveFull 
                                     ? 'Full' 
                                     : (isWavePastDeadline ? 'Deadline Passed' : (isAlreadyEnrolled ? 'Already Enrolled' : `${capacity - taken} seats left`))
                                   }
                                 </span>
                               </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
                                 <span>📅 {w.duration}</span>
                                 {w.deadline && (
                                   <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
@@ -1163,18 +1163,18 @@ export default function FTPlaceDetails() {
                                   transition: 'all 0.2s',
                                 }}
                               >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                                   <span style={{ fontWeight: 700, fontSize: '0.82rem', color: isSelected ? 'var(--ft-primary)' : 'var(--ft-text)' }}>
                                     {w.name}
                                   </span>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-text-secondary)' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isWaveFull || isWavePastDeadline || isAlreadyEnrolled ? 'var(--ft-danger)' : 'var(--ft-success)' }}>
                                     {isWaveFull 
                                       ? 'Full' 
                                       : (isWavePastDeadline ? 'Deadline Passed' : (isAlreadyEnrolled ? 'Already Enrolled' : `${capacity - taken} seats left`))
                                     }
                                   </span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--ft-text-secondary)' }}>
                                   <span>📅 {w.duration}</span>
                                   {w.deadline && (
                                     <span style={isWavePastDeadline ? { color: 'var(--ft-danger)', fontWeight: 600 } : {}}>
