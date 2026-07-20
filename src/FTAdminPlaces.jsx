@@ -159,6 +159,7 @@ export default function FTAdminPlaces() {
   const [expandedInsights, setExpandedInsights] = useState({});
   const [evaluations, setEvaluations] = useState([]);
   const [activeTab, setActiveTab] = useState('registrations');
+  const [hasSwipedTable, setHasSwipedTable] = useState(false);
 
   // Fetch evaluations
   useEffect(() => {
@@ -1441,7 +1442,7 @@ export default function FTAdminPlaces() {
           </div>
         ) : (
           <div style={{ position: 'relative' }}>
-            <div className="ft-table-wrapper">
+            <div className="ft-table-wrapper" onScroll={(e) => { if (e.target.scrollLeft > 10) setHasSwipedTable(true); }}>
               <table className="ft-table" style={{ minWidth: '950px' }}>
               <thead>
                 <tr>
@@ -1510,7 +1511,7 @@ export default function FTAdminPlaces() {
                   return (
                     <tr key={place.id}>
                       <td style={{ position: 'relative' }}>
-                        <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>
+                        {!hasSwipedTable && <div className="ft-swipe-indicator" style={{ right: '-35px', zIndex: 1, pointerEvents: 'none' }}>👈 Swipe</div>}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: 'var(--ft-radius-sm)', overflow: 'hidden', flexShrink: 0 }}>
                             {place.image ? (
