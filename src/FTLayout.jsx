@@ -1078,7 +1078,7 @@ export default function FTLayout() {
           </div>
           <div className="ft-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1.25rem' }}>
             <p style={{ fontSize: '0.88rem', color: 'var(--ft-text-secondary)', marginBottom: '1.25rem' }}>
-              Welcome to Alamein Field Training Portal Version 2.0! We have rolled out exciting updates tailored to your portal role. Explore the tabs below to see what features are now available.
+              Welcome to Alamein Field Training Version 2.0! We have rolled out exciting updates tailored to your role. Explore the tabs below to see what features are now available.
             </p>
             
             {/* Tabs Inside Modal */}
