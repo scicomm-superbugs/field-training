@@ -112,26 +112,52 @@ export default function FTPlaceDetails() {
 
   const totalCapacity = useMemo(() => {
     if (!place) return 0;
-    const now = new Date();
     if (place.hasPrograms && place.programs) {
       return place.programs.reduce((acc, p) => {
         if (p.waves && p.waves.length > 0) {
-          return acc + p.waves.reduce((sum, w) => {
-            const isPast = w.deadline ? new Date(w.deadline) < now : false;
-            return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
-          }, 0);
+          return acc + p.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
         }
         return acc + (parseInt(p.capacity) || 0);
       }, 0);
     }
     if (place.waves && place.waves.length > 0) {
-      return place.waves.reduce((sum, w) => {
-        const isPast = w.deadline ? new Date(w.deadline) < now : false;
-        return sum + (isPast ? 0 : (parseInt(w.capacity) || 0));
-      }, 0);
+      return place.waves.reduce((sum, w) => sum + (parseInt(w.capacity) || 0), 0);
     }
     return parseInt(place.capacity) || 0;
   }, [place]);
+
+  const remainingSpots = useMemo(() => {
+    if (!place) return 0;
+    let remaining = 0;
+    const now = new Date();
+    const allRegs = registrations ? registrations.filter(r => r.placeId === placeId && r.status !== 'failed' && !r.isTest) : [];
+    
+    if (place.hasPrograms && place.programs) {
+      place.programs.forEach(prog => {
+        const progRegs = allRegs.filter(r => r.programId === prog.id);
+        if (prog.waves && prog.waves.length > 0) {
+          prog.waves.forEach(w => {
+            const isPast = w.deadline ? new Date(w.deadline) < now : false;
+            if (!isPast) {
+              const wCap = parseInt(w.capacity) || 0;
+              const waveRegsCount = progRegs.filter(r => r.waveId === w.id).length;
+              remaining += Math.max(0, wCap - waveRegsCount);
+            }
+          });
+        }
+      });
+    } else if (place.waves && place.waves.length > 0) {
+      place.waves.forEach(w => {
+        const isPast = w.deadline ? new Date(w.deadline) < now : false;
+        if (!isPast) {
+          const wCap = parseInt(w.capacity) || 0;
+          const waveRegsCount = allRegs.filter(r => r.waveId === w.id).length;
+          remaining += Math.max(0, wCap - waveRegsCount);
+        }
+      });
+    }
+    return remaining;
+  }, [place, registrations, placeId]);
 
   const isFull = useMemo(() => {
     if (place?.hasPrograms && place.programs && selectedProgramId) {
@@ -835,22 +861,32 @@ export default function FTPlaceDetails() {
                   <span className="ft-place-info-label">Department</span>
                   <span className="ft-place-info-value">{place.department || '—'}</span>
                 </div>
-                <div className="ft-place-info-row">
-                  <Users size={16} style={{ color: 'var(--ft-text-muted)' }} />
-                  <span className="ft-place-info-label">Registered</span>
-                  <span className="ft-place-info-value" style={totalCapacity && regCount > totalCapacity ? { color: 'var(--ft-danger)', fontWeight: 700 } : {}}>
-                    {regCount} students{totalCapacity && regCount > totalCapacity ? ' ⚠️' : ''}
-                  </span>
-                </div>
+                {isStaff && (
+                  <div className="ft-place-info-row">
+                    <Users size={16} style={{ color: 'var(--ft-text-muted)' }} />
+                    <span className="ft-place-info-label">Registered</span>
+                    <span className="ft-place-info-value" style={totalCapacity && regCount > totalCapacity ? { color: 'var(--ft-danger)', fontWeight: 700 } : {}}>
+                      {regCount} students{totalCapacity && regCount > totalCapacity ? ' ⚠️' : ''}
+                    </span>
+                  </div>
+                )}
                 {totalCapacity > 0 && (
                   <div className="ft-place-info-row">
                     <Building2 size={16} style={{ color: 'var(--ft-text-muted)' }} />
-                    <span className="ft-place-info-label">Capacity</span>
+                    <span className="ft-place-info-label">{isStaff ? 'Capacity' : 'Available Seats'}</span>
                     <span className="ft-place-info-value">
-                      {totalCapacity} spots
-                      {regCount > totalCapacity && (
-                        <span style={{ marginLeft: '0.4rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                          +{regCount - totalCapacity} overload
+                      {isStaff ? (
+                        <>
+                          {totalCapacity} spots
+                          {regCount > totalCapacity && (
+                            <span style={{ marginLeft: '0.4rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                              +{regCount - totalCapacity} overload
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: remainingSpots > 0 ? 'inherit' : 'var(--ft-danger)', fontWeight: remainingSpots > 0 ? 'normal' : 700 }}>
+                          {remainingSpots > 0 ? `${remainingSpots} spots` : 'Full'}
                         </span>
                       )}
                     </span>
