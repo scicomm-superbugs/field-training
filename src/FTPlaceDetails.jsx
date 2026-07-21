@@ -990,9 +990,15 @@ export default function FTPlaceDetails() {
                                         style={{ padding: '0.4rem', fontSize: '0.8rem', marginBottom: '0.5rem' }}
                                       >
                                         <option value="">-- Choose New Program --</option>
-                                        {place.programs.map(p => (
-                                          <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
+                                        {place.programs.map(p => {
+                                          const taken = registrations.filter(r => r.placeId === placeId && r.programId === p.id && r.status !== 'failed' && !r.isTest).length;
+                                          const progFull = p.capacity ? taken >= p.capacity : false;
+                                          return (
+                                            <option key={p.id} value={p.id} disabled={progFull}>
+                                              {p.name} {progFull ? '(Full)' : ''}
+                                            </option>
+                                          );
+                                        })}
                                       </select>
 
                                       {/* Program details inside change request */}
@@ -1038,9 +1044,15 @@ export default function FTPlaceDetails() {
                                           style={{ padding: '0.4rem', fontSize: '0.8rem' }}
                                         >
                                           <option value="">-- Choose New Wave --</option>
-                                          {progWaves.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name} ({w.duration})</option>
-                                          ))}
+                                          {progWaves.map(w => {
+                                            const taken = waveStats[w.id] || 0;
+                                            const waveFull = w.capacity ? taken >= w.capacity : false;
+                                            return (
+                                              <option key={w.id} value={w.id} disabled={waveFull}>
+                                                {w.name} ({w.duration}) {waveFull ? '- Full' : ''}
+                                              </option>
+                                            );
+                                          })}
                                         </select>
                                       </div>
                                     );
